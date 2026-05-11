@@ -1,60 +1,73 @@
-import { fetchWithProxy } from '$lib/config/api';
+import { fetchWithProxy, logger } from '$lib/config/api';
 import { INDICES, SECTORS } from '$lib/config/indianMarkets';
 import { NIFTY50_SYMBOLS } from '$lib/config/nifty50';
 import type { MarketQuote, StockQuote, MarketsData, GainersLosers } from '$lib/types';
 
-interface YahooQuote {
-	symbol: string;
-	shortName?: string;
-	longName?: string;
+interface ChartMeta {
 	regularMarketPrice?: number;
+	chartPreviousClose?: number;
 	regularMarketChange?: number;
 	regularMarketChangePercent?: number;
+	currency?: string;
 }
 
-interface YahooQuoteResponse {
-	quoteResponse?: {
-		result?: YahooQuote[];
+interface ChartResponse {
+	chart?: {
+		result?: Array<{ meta: ChartMeta }>;
 		error?: unknown;
 	};
 }
 
-async function fetchYahooQuotes(symbols: string[]): Promise<YahooQuote[]> {
-	const symbolsParam = symbols.join(',');
-	const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbolsParam)}&fields=shortName,longName,regularMarketPrice,regularMarketChange,regularMarketChangePercent`;
-
-	const response = await fetchWithProxy(url);
-	const text = await response.text();
-
-	let data: YahooQuoteResponse;
+async function fetchYahooChart(symbol: string): Promise<ChartMeta | null> {
+	const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=2d`;
 	try {
-		data = JSON.parse(text);
-	} catch {
-		throw new Error('Failed to parse Yahoo Finance response');
+		const response = await fetchWithProxy(url);
+		const text = await response.text();
+		const data: ChartResponse = JSON.parse(text);
+		return data?.chart?.result?.[0]?.meta ?? null;
+	} catch (err) {
+		logger.warn('Markets', `Failed to fetch ${symbol}: ${(err as Error).message}`);
+		return null;
 	}
+}
 
-	return data?.quoteResponse?.result ?? [];
+async function fetchSymbolsBatch(
+	symbols: string[]
+): Promise<Map<string, ChartMeta>> {
+	const results = await Promise.all(symbols.map((s) => fetchYahooChart(s).then((m) => ({ symbol: s, meta: m }))));
+	const map = new Map<string, ChartMeta>();
+	for (const { symbol, meta } of results) {
+		if (meta) map.set(symbol, meta);
+	}
+	return map;
+}
+
+function calcChange(meta: ChartMeta): { change: number; changePercent: number } {
+	const price = meta.regularMarketPrice ?? 0;
+	const prev = meta.chartPreviousClose ?? price;
+	// Prefer explicit fields if available, otherwise derive from prev close
+	const change = meta.regularMarketChange ?? price - prev;
+	const changePercent =
+		meta.regularMarketChangePercent ?? (prev !== 0 ? ((price - prev) / prev) * 100 : 0);
+	return { change, changePercent };
 }
 
 export async function fetchMarkets(): Promise<MarketsData> {
-	const allSymbols = [...INDICES, ...SECTORS].map((s) => s.symbol);
-	const quotes = await fetchYahooQuotes(allSymbols);
+	const allSymbols = [...INDICES, ...SECTORS];
+	const quoteMap = await fetchSymbolsBatch(allSymbols.map((s) => s.symbol));
 
-	const quoteMap = new Map<string, YahooQuote>();
-	for (const q of quotes) {
-		quoteMap.set(q.symbol, q);
-	}
-
-	function buildQuote(
-		sym: { symbol: string; name: string; type: 'index' | 'sector' }
-	): MarketQuote {
-		const q = quoteMap.get(sym.symbol);
+	function buildQuote(sym: { symbol: string; name: string; type: 'index' | 'sector' }): MarketQuote {
+		const meta = quoteMap.get(sym.symbol);
+		if (!meta) {
+			return { symbol: sym.symbol, name: sym.name, price: 0, change: 0, changePercent: 0, type: sym.type };
+		}
+		const { change, changePercent } = calcChange(meta);
 		return {
 			symbol: sym.symbol,
 			name: sym.name,
-			price: q?.regularMarketPrice ?? 0,
-			change: q?.regularMarketChange ?? 0,
-			changePercent: q?.regularMarketChangePercent ?? 0,
+			price: meta.regularMarketPrice ?? 0,
+			change,
+			changePercent,
 			type: sym.type
 		};
 	}
@@ -66,27 +79,37 @@ export async function fetchMarkets(): Promise<MarketsData> {
 }
 
 export async function fetchGainersLosers(): Promise<GainersLosers> {
-	// Fetch in two batches of 25 to stay within URL limits
-	const batch1 = NIFTY50_SYMBOLS.slice(0, 25).map((s) => s.symbol);
-	const batch2 = NIFTY50_SYMBOLS.slice(25).map((s) => s.symbol);
+	const symbols = NIFTY50_SYMBOLS.map((s) => s.symbol);
 
-	const [quotes1, quotes2] = await Promise.all([
-		fetchYahooQuotes(batch1),
-		fetchYahooQuotes(batch2)
-	]);
+	// Fetch in batches of 10 with small delays to avoid rate limits
+	const BATCH_SIZE = 10;
+	const allMeta = new Map<string, ChartMeta>();
 
-	const allQuotes = [...quotes1, ...quotes2];
+	for (let i = 0; i < symbols.length; i += BATCH_SIZE) {
+		const batch = symbols.slice(i, i + BATCH_SIZE);
+		const batchMap = await fetchSymbolsBatch(batch);
+		for (const [sym, meta] of batchMap) {
+			allMeta.set(sym, meta);
+		}
+		if (i + BATCH_SIZE < symbols.length) {
+			await new Promise((r) => setTimeout(r, 300));
+		}
+	}
+
 	const nameMap = new Map(NIFTY50_SYMBOLS.map((s) => [s.symbol, s.name]));
 
-	const stocks: StockQuote[] = allQuotes
-		.filter((q) => q.regularMarketPrice != null)
-		.map((q) => ({
-			symbol: q.symbol,
-			name: nameMap.get(q.symbol) ?? q.shortName ?? q.symbol,
-			price: q.regularMarketPrice!,
-			change: q.regularMarketChange ?? 0,
-			changePercent: q.regularMarketChangePercent ?? 0
-		}));
+	const stocks: StockQuote[] = [];
+	for (const [symbol, meta] of allMeta) {
+		if (meta.regularMarketPrice == null) continue;
+		const { change, changePercent } = calcChange(meta);
+		stocks.push({
+			symbol,
+			name: nameMap.get(symbol) ?? symbol,
+			price: meta.regularMarketPrice,
+			change,
+			changePercent
+		});
+	}
 
 	const sorted = [...stocks].sort((a, b) => b.changePercent - a.changePercent);
 

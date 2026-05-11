@@ -12,6 +12,11 @@ interface RawItem {
 	feedColor: string;
 }
 
+function cleanTitle(raw: string): string {
+	// Google News appends " - Publication Name" — strip it
+	return raw.replace(/\s+-\s+[^-]+$/, '').trim();
+}
+
 function parseRSS(xmlText: string, feedId: string, feedName: string, feedColor: string): RawItem[] {
 	if (typeof DOMParser === 'undefined') return [];
 
@@ -30,8 +35,9 @@ function parseRSS(xmlText: string, feedId: string, feedName: string, feedColor: 
 
 	return Array.from(items)
 		.map((item) => {
-			const title =
+			const rawTitle =
 				item.querySelector('title')?.textContent?.trim().replace(/^<!\[CDATA\[|\]\]>$/g, '') ?? '';
+			const title = cleanTitle(rawTitle);
 
 			// RSS 2.0: <link>URL</link> or Atom: <link href="URL"/>
 			const linkEl = item.querySelector('link');

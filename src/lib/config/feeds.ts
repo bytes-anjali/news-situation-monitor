@@ -21,13 +21,25 @@ export const INDIAN_NEWS_FEEDS: NewsFeed[] = [
 	{
 		id: 'mint',
 		name: 'Mint',
-		url: 'https://www.livemint.com/rss/news',
+		url: 'https://news.google.com/rss/search?q=site:livemint.com+finance+OR+market+OR+stock&hl=en-IN&gl=IN&ceid=IN:en',
 		color: '#4caf50'
 	},
 	{
 		id: 'bs',
 		name: 'Business Standard',
-		url: 'https://www.business-standard.com/rss/home_page_top_stories.rss',
+		url: 'https://news.google.com/rss/search?q=site:business-standard.com+market+OR+stock+OR+finance&hl=en-IN&gl=IN&ceid=IN:en',
 		color: '#4488ff'
+	},
+	{
+		id: 'moneycontrol',
+		name: 'MoneyControl',
+		url: 'https://news.google.com/rss/search?q=site:moneycontrol.com+stock+OR+market+OR+nifty&hl=en-IN&gl=IN&ceid=IN:en',
+		color: '#9c27b0'
+	},
+	{
+		id: 'ndtv-profit',
+		name: 'NDTV Profit',
+		url: 'https://news.google.com/rss/search?q=site:ndtvprofit.com+stock+OR+market+OR+sensex&hl=en-IN&gl=IN&ceid=IN:en',
+		color: '#e91e63'
 	}
 ];
