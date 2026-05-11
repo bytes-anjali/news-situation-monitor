@@ -1,20 +1,3 @@
-/**
- * Components barrel file
- */
-
-// Common components
-export {
-	Panel,
-	NewsItem,
-	MarketItem,
-	HeatmapCell,
-	LoadingSpinner,
-	ErrorMessage,
-	Badge
-} from './common';
-
-// Layout components
+export { Panel, LoadingSpinner, ErrorMessage } from './common';
 export { Header, Dashboard } from './layout';
-
-// Modal components
-export { Modal, SettingsModal, MonitorFormModal } from './modals';
+export { IndianMarketPanel, GainersLosersPanel, ContentSpottingPanel } from './panels';

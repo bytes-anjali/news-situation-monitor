@@ -2,37 +2,43 @@
 	import { isRefreshing, lastRefresh } from '$lib/stores';
 
 	interface Props {
-		onSettingsClick?: () => void;
+		onRefresh?: () => void;
 	}
 
-	let { onSettingsClick }: Props = $props();
+	let { onRefresh }: Props = $props();
 
 	const lastRefreshText = $derived(
 		$lastRefresh
-			? `Last updated: ${new Date($lastRefresh).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
-			: 'Never refreshed'
+			? `Updated ${new Date($lastRefresh).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
+			: 'Not yet refreshed'
 	);
 </script>
 
 <header class="header">
 	<div class="header-left">
-		<h1 class="logo">SITUATION MONITOR</h1>
-	</div>
-
-	<div class="header-center">
-		<div class="refresh-status">
-			{#if $isRefreshing}
-				<span class="status-text loading">Refreshing...</span>
-			{:else}
-				<span class="status-text">{lastRefreshText}</span>
-			{/if}
+		<div class="logo-wrap">
+			<span class="logo-main">AngelOne Bytes</span>
+			<span class="logo-sub">Content Dashboard</span>
 		</div>
 	</div>
 
+	<div class="header-center">
+		{#if $isRefreshing}
+			<span class="status loading">Refreshing...</span>
+		{:else}
+			<span class="status">{lastRefreshText}</span>
+		{/if}
+	</div>
+
 	<div class="header-right">
-		<button class="header-btn settings-btn" onclick={onSettingsClick} title="Settings">
-			<span class="btn-icon">⚙</span>
-			<span class="btn-label">Settings</span>
+		<button
+			class="refresh-btn"
+			onclick={onRefresh}
+			disabled={$isRefreshing}
+			title="Refresh all data"
+		>
+			<span class="refresh-icon" class:spinning={$isRefreshing}>↻</span>
+			<span class="refresh-label">Refresh</span>
 		</button>
 	</div>
 </header>
@@ -52,85 +58,96 @@
 	}
 
 	.header-left {
-		display: flex;
-		align-items: baseline;
 		flex-shrink: 0;
 	}
 
-	.logo {
-		font-size: 0.9rem;
-		font-weight: 700;
-		letter-spacing: 0.1em;
-		color: var(--text-primary);
-		margin: 0;
+	.logo-wrap {
 		display: flex;
 		align-items: baseline;
 		gap: 0.5rem;
+	}
+
+	.logo-main {
+		font-size: 0.95rem;
+		font-weight: 700;
+		letter-spacing: 0.02em;
+		color: var(--text);
+	}
+
+	.logo-sub {
+		font-size: 0.6rem;
+		color: var(--text-muted);
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
 	}
 
 	.header-center {
-		display: flex;
-		align-items: center;
 		flex: 1;
-		justify-content: center;
-		min-width: 0;
-	}
-
-	.refresh-status {
 		display: flex;
-		align-items: center;
-		gap: 0.5rem;
+		justify-content: center;
 	}
 
-	.status-text {
+	.status {
 		font-size: 0.6rem;
 		color: var(--text-muted);
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
 	}
 
-	.status-text.loading {
-		color: var(--accent);
+	.status.loading {
+		color: var(--yellow);
 	}
 
 	.header-right {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
 		flex-shrink: 0;
 	}
 
-	.header-btn {
+	.refresh-btn {
 		display: flex;
 		align-items: center;
-		gap: 0.3rem;
-		min-height: 2.75rem;
+		gap: 0.35rem;
 		padding: 0.4rem 0.75rem;
 		background: transparent;
 		border: 1px solid var(--border);
 		border-radius: 4px;
-		color: var(--text-secondary);
+		color: var(--text-dim);
 		cursor: pointer;
-		transition: all 0.15s ease;
 		font-size: 0.65rem;
+		font-family: inherit;
+		transition: all 0.15s;
+		min-height: 2.5rem;
 	}
 
-	.header-btn:hover {
+	.refresh-btn:hover:not(:disabled) {
 		background: var(--border);
-		color: var(--text-primary);
+		color: var(--text);
 	}
 
-	.btn-icon {
-		font-size: 0.8rem;
+	.refresh-btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
 	}
 
-	.btn-label {
+	.refresh-icon {
+		font-size: 0.9rem;
+		display: inline-block;
+		transition: transform 0.3s;
+	}
+
+	.refresh-icon.spinning {
+		animation: spin 1s linear infinite;
+	}
+
+	@keyframes spin {
+		to {
+			transform: rotate(360deg);
+		}
+	}
+
+	.refresh-label {
 		display: none;
 	}
 
-	@media (min-width: 768px) {
-		.btn-label {
+	@media (min-width: 480px) {
+		.refresh-label {
 			display: inline;
 		}
 	}
