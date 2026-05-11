@@ -37,16 +37,22 @@
 
 	async function handleRefresh() {
 		refresh.startRefresh();
+
+		// Safety net: always end refresh after 45s no matter what
+		const safetyTimer = setTimeout(() => refresh.endRefresh(['Refresh timed out']), 45000);
+
 		try {
-			// Stage 1: markets data (fast, critical)
+			// Stage 1: markets (fast, parallel)
 			await Promise.all([loadMarkets(), loadGainersLosers()]);
 			refresh.nextStage();
 
-			// Stage 2: news (slower, sequential RSS fetching)
+			// Stage 2: news (sequential RSS fetching across 4 feeds)
 			await loadNews();
 			refresh.endRefresh();
 		} catch (err) {
 			refresh.endRefresh([String(err)]);
+		} finally {
+			clearTimeout(safetyTimer);
 		}
 	}
 
