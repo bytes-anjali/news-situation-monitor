@@ -2,12 +2,14 @@
 	import Panel from '$lib/components/common/Panel.svelte';
 	import { news } from '$lib/stores';
 	import { INDIAN_NEWS_FEEDS } from '$lib/config/feeds';
+	import type { TrendItem } from '$lib/api/trends';
 
 	interface Props {
 		onRefresh?: () => void;
+		trends?: TrendItem[];
 	}
 
-	let { onRefresh }: Props = $props();
+	let { onRefresh, trends = [] }: Props = $props();
 
 	function relativeTime(date: Date): string {
 		const diff = Date.now() - date.getTime();
@@ -21,6 +23,26 @@
 	}
 
 	const feedColors = Object.fromEntries(INDIAN_NEWS_FEEDS.map((f) => [f.id, f.color]));
+
+	function getMatchingTrend(headline: string): TrendItem | null {
+		if (trends.length === 0) return null;
+		const lower = headline.toLowerCase();
+		for (const trend of trends) {
+			const words = trend.title
+				.toLowerCase()
+				.replace(/[^\w\s]/g, '')
+				.split(/\s+/)
+				.filter((w) => w.length > 3);
+			if (words.some((w) => lower.includes(w))) return trend;
+		}
+		return null;
+	}
+
+	const sortedCards = $derived.by(() => {
+		const trending = $news.cards.filter((c) => getMatchingTrend(c.headline) !== null);
+		const regular = $news.cards.filter((c) => getMatchingTrend(c.headline) === null);
+		return [...trending, ...regular];
+	});
 </script>
 
 <Panel
@@ -55,25 +77,39 @@
 	</div>
 
 	<div class="cards">
-		{#each $news.cards as card (card.id)}
-			<article class="card">
-				<div class="card-meta">
-					<div class="card-sources">
-						{#each card.sources as src}
-							<span class="source-dot" style="color:{feedColors[src.feedId] ?? '#888'}">●</span>
+		{#each sortedCards as card (card.id)}
+			{@const matchedTrend = getMatchingTrend(card.headline)}
+			<article class="card" class:trending={matchedTrend !== null}>
+				<div class="card-top">
+					<div class="card-badges">
+						{#if matchedTrend !== null}
 							<a
-								href={src.url}
+								href={matchedTrend.shareUrl}
 								target="_blank"
 								rel="noopener noreferrer"
-								class="source-link"
-								style="color:{feedColors[src.feedId] ?? '#888'}">{src.name}</a
-							>
-						{/each}
+								class="trend-badge"
+								title="Trending on Google: {matchedTrend.title}"
+							>🔥 Trending</a>
+						{/if}
 					</div>
 					<span class="timestamp">{relativeTime(card.timestamp)}</span>
 				</div>
 
 				<p class="headline">{card.headline}</p>
+
+				<div class="card-sources">
+					{#each card.sources as src}
+						<a
+							href={src.url}
+							target="_blank"
+							rel="noopener noreferrer"
+							class="source-chip"
+							style="--chip-color:{feedColors[src.feedId] ?? '#888'}"
+						>
+							<span class="source-dot">●</span>{src.name}
+						</a>
+					{/each}
+				</div>
 			</article>
 		{/each}
 
@@ -148,35 +184,42 @@
 		border-color: var(--border-light);
 	}
 
-	.card-meta {
+	.card.trending {
+		border-color: rgba(255, 160, 0, 0.35);
+	}
+
+	.card.trending:hover {
+		border-color: rgba(255, 160, 0, 0.6);
+	}
+
+	.card-top {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		margin-bottom: 0.35rem;
+		margin-bottom: 0.3rem;
 		gap: 0.5rem;
+		min-height: 1.2rem;
 	}
 
-	.card-sources {
+	.card-badges {
 		display: flex;
-		align-items: center;
-		flex-wrap: wrap;
-		gap: 0.2rem;
+		gap: 0.3rem;
 	}
 
-	.source-dot {
+	.trend-badge {
 		font-size: 0.5rem;
-		line-height: 1;
-	}
-
-	.source-link {
-		font-size: 0.55rem;
-		font-weight: 600;
+		font-weight: 700;
+		color: #ffa000;
+		background: rgba(255, 160, 0, 0.12);
+		border: 1px solid rgba(255, 160, 0, 0.3);
+		border-radius: 3px;
+		padding: 0.1rem 0.35rem;
 		text-decoration: none;
-		margin-right: 0.35rem;
+		white-space: nowrap;
 	}
 
-	.source-link:hover {
-		text-decoration: underline;
+	.trend-badge:hover {
+		background: rgba(255, 160, 0, 0.22);
 	}
 
 	.timestamp {
@@ -186,10 +229,38 @@
 	}
 
 	.headline {
-		font-size: 0.72rem;
+		font-size: 0.75rem;
+		font-weight: 600;
 		color: var(--text);
 		line-height: 1.4;
-		margin: 0;
+		margin: 0 0 0.4rem 0;
+	}
+
+	.card-sources {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.3rem;
+	}
+
+	.source-chip {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.2rem;
+		font-size: 0.5rem;
+		font-weight: 600;
+		color: var(--chip-color);
+		text-decoration: none;
+		opacity: 0.85;
+	}
+
+	.source-chip:hover {
+		opacity: 1;
+		text-decoration: underline;
+	}
+
+	.source-chip .source-dot {
+		font-size: 0.45rem;
+		line-height: 1;
 	}
 
 	.empty {
