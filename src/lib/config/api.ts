@@ -17,7 +17,7 @@ export const CORS_PROXY_URL = CORS_PROXIES[1];
 export const CORS_PROXIES_COMPAT = { primary: CORS_PROXIES[0], fallback: CORS_PROXIES[1] };
 
 // Cloudflare Worker for Google Trends (set this after running: cd worker && npx wrangler deploy)
-export const TRENDS_WORKER_URL = 'https://angelone-trends.YOUR_SUBDOMAIN.workers.dev/trends';
+export const TRENDS_WORKER_URL = 'https://news-trends.mailboxanj.workers.dev/trends';
 
 const PROXY_TIMEOUT_MS = 8000;
 
