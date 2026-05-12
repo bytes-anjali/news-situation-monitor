@@ -1,12 +1,16 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { Header, Dashboard } from '$lib/components/layout';
-	import { IndianMarketPanel, GainersLosersPanel, ContentSpottingPanel } from '$lib/components/panels';
+	import { IndianMarketPanel, GainersLosersPanel, ContentSpottingPanel, TrendsPanel } from '$lib/components/panels';
 	import { markets, news, refresh } from '$lib/stores';
-	import { fetchMarkets, fetchGainersLosers, fetchIndianNews } from '$lib/api';
+	import { fetchMarkets, fetchGainersLosers, fetchIndianNews, fetchBusinessTrends, type TrendItem } from '$lib/api';
 	import { isMarketOpen, getNewsRefreshInterval } from '$lib/utils/marketHours';
 
 	const MARKET_REFRESH_MS = 60 * 1000;
+
+	let trends = $state<TrendItem[]>([]);
+	let trendsLoading = $state(false);
+	let trendsError = $state<string | null>(null);
 
 	async function loadMarkets() {
 		markets.setLoading(true);
@@ -38,6 +42,18 @@
 		}
 	}
 
+	async function loadTrends() {
+		trendsLoading = true;
+		trendsError = null;
+		try {
+			trends = await fetchBusinessTrends();
+		} catch (err) {
+			trendsError = String(err);
+		} finally {
+			trendsLoading = false;
+		}
+	}
+
 	// Full manual refresh — shows "Refreshing..." in header
 	async function handleRefresh() {
 		refresh.startRefresh();
@@ -47,7 +63,7 @@
 		try {
 			await Promise.all([loadMarkets(), loadGainersLosers()]);
 			refresh.nextStage();
-			await loadNews();
+			await Promise.all([loadNews(), loadTrends()]);
 			refresh.endRefresh();
 		} catch (err) {
 			refresh.endRefresh([String(err)]);
@@ -69,21 +85,21 @@
 
 	async function silentRefreshNews() {
 		try {
-			const cards = await fetchIndianNews();
+			const [cards, newTrends] = await Promise.all([fetchIndianNews(), fetchBusinessTrends()]);
 			news.setCards(cards);
+			trends = newTrends;
 		} catch {
 			// silent
 		}
 	}
 
 	onMount(() => {
-		// Initial full load (including gainers/losers once)
 		handleRefresh();
 
 		// Markets: every 60s, skips automatically when market is closed
 		const marketTimer = setInterval(silentRefreshMarkets, MARKET_REFRESH_MS);
 
-		// News: self-rescheduling — 15min during market hours, 60min outside
+		// News + trends: self-rescheduling — 15min during market hours, 60min outside
 		let newsTimer: ReturnType<typeof setTimeout> | null = null;
 		function scheduleNews() {
 			newsTimer = setTimeout(async () => {
@@ -116,8 +132,11 @@
 			<div class="panel-slot">
 				<GainersLosersPanel onRefresh={loadGainersLosers} />
 			</div>
+			<div class="panel-slot">
+				<TrendsPanel {trends} loading={trendsLoading} error={trendsError} onRefresh={loadTrends} />
+			</div>
 			<div class="panel-slot news-slot">
-				<ContentSpottingPanel />
+				<ContentSpottingPanel onRefresh={loadNews} />
 			</div>
 		</Dashboard>
 	</main>

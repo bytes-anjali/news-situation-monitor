@@ -4,6 +4,12 @@
 	import { formatVolume } from '$lib/config/keywords';
 	import { INDIAN_NEWS_FEEDS } from '$lib/config/feeds';
 
+	interface Props {
+		onRefresh?: () => void;
+	}
+
+	let { onRefresh }: Props = $props();
+
 	function relativeTime(date: Date): string {
 		const diff = Date.now() - date.getTime();
 		const mins = Math.floor(diff / 60000);
@@ -49,6 +55,22 @@
 			{/each}
 		</div>
 	{/snippet}
+
+	<div class="news-toolbar">
+		<button
+			class="refresh-news-btn"
+			onclick={onRefresh}
+			disabled={$news.loading}
+			title="Manually refresh news"
+		>
+			↻ Refresh News
+		</button>
+		{#if $news.lastUpdated}
+			<span class="news-updated">
+				Updated {new Date($news.lastUpdated).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+			</span>
+		{/if}
+	</div>
 
 	<div class="cards">
 		{#each $filteredNews as card (card.id)}
@@ -130,6 +152,41 @@
 
 	.feed-dot {
 		font-size: 0.55rem;
+	}
+
+	.news-toolbar {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		margin-bottom: 0.5rem;
+	}
+
+	.refresh-news-btn {
+		font-size: 0.6rem;
+		font-family: inherit;
+		padding: 0.25rem 0.6rem;
+		background: transparent;
+		border: 1px solid var(--border);
+		border-radius: 3px;
+		color: var(--text-dim);
+		cursor: pointer;
+		transition: all 0.15s;
+		flex-shrink: 0;
+	}
+
+	.refresh-news-btn:hover:not(:disabled) {
+		background: var(--border);
+		color: var(--text);
+	}
+
+	.refresh-news-btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.news-updated {
+		font-size: 0.55rem;
+		color: var(--text-muted);
 	}
 
 	.cards {

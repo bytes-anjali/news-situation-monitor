@@ -20,17 +20,6 @@
 </script>
 
 <Panel id="gainers" title="Top Gainers / Losers" loading={$markets.gainersLoading} error={$markets.error}>
-	{#snippet actions()}
-		<button
-			class="check-btn"
-			onclick={onRefresh}
-			disabled={$markets.gainersLoading}
-			title="Fetch today's gainers & losers"
-		>
-			↻ Check Today
-		</button>
-	{/snippet}
-
 	<div class="gl-grid">
 		<div class="col">
 			<div class="col-header gainers-header">Gainers</div>
@@ -50,7 +39,7 @@
 					</a>
 				{/each}
 			{:else if !$markets.gainersLoading}
-				<div class="empty-col">Click "Check Today"</div>
+				<div class="empty-col">—</div>
 			{/if}
 		</div>
 
@@ -74,9 +63,19 @@
 					</a>
 				{/each}
 			{:else if !$markets.gainersLoading}
-				<div class="empty-col">Click "Check Today"</div>
+				<div class="empty-col">—</div>
 			{/if}
 		</div>
+	</div>
+
+	<div class="check-row">
+		<button
+			class="check-btn"
+			onclick={onRefresh}
+			disabled={$markets.gainersLoading}
+		>
+			↻ Check Today
+		</button>
 	</div>
 </Panel>
 
@@ -111,7 +110,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		padding: 0.3rem 0;
+		padding: 0.3rem 0.25rem;
 		border-bottom: 1px solid var(--border);
 		text-decoration: none;
 		border-radius: 2px;
@@ -169,16 +168,23 @@
 		padding: 0.5rem 0;
 	}
 
+	.check-row {
+		margin-top: 0.6rem;
+		display: flex;
+		justify-content: center;
+	}
+
 	.check-btn {
-		font-size: 0.55rem;
+		font-size: 0.6rem;
 		font-family: inherit;
-		padding: 0.2rem 0.5rem;
+		padding: 0.3rem 1rem;
 		background: transparent;
 		border: 1px solid var(--border);
 		border-radius: 3px;
 		color: var(--text-dim);
 		cursor: pointer;
 		transition: all 0.15s;
+		width: 100%;
 	}
 
 	.check-btn:hover:not(:disabled) {
