@@ -89,7 +89,7 @@
 	.panel {
 		background: var(--surface);
 		border: 1px solid var(--border);
-		border-radius: 4px;
+		border-radius: 6px;
 		overflow: hidden;
 		display: flex;
 		flex-direction: column;
@@ -107,10 +107,10 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		padding: 0.5rem 0.75rem;
+		padding: 0.6rem 0.9rem;
 		background: var(--surface);
 		border-bottom: 1px solid var(--border);
-		min-height: 2rem;
+		min-height: 2.2rem;
 	}
 
 	.panel-title-row {
@@ -120,21 +120,21 @@
 	}
 
 	.panel-title {
-		font-size: 0.65rem;
+		font-size: 0.7rem;
 		font-weight: 600;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		color: var(--text-secondary);
+		letter-spacing: 0.01em;
+		color: var(--text-dim);
 		margin: 0;
 	}
 
 	.panel-count {
-		font-size: 0.65rem;
+		font-size: 0.6rem;
 		font-weight: 500;
-		color: var(--accent);
-		background: rgba(var(--accent-rgb), 0.1);
+		color: var(--text-muted);
+		background: var(--bg);
+		border: 1px solid var(--border);
 		padding: 0.1rem 0.4rem;
-		border-radius: 3px;
+		border-radius: 10px;
 	}
 
 	.panel-status {
@@ -198,7 +198,7 @@
 	.panel-content {
 		flex: 1;
 		overflow-y: auto;
-		padding: 0.5rem;
+		padding: 0.75rem;
 	}
 
 	.panel-content.hidden {

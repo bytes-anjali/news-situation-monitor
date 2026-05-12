@@ -63,9 +63,10 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		padding: 0.5rem 1rem;
+		padding: 0.65rem 1.25rem;
 		background: var(--surface);
 		border-bottom: 1px solid var(--border);
+		box-shadow: 0 1px 0 var(--border);
 		position: sticky;
 		top: 0;
 		z-index: 100;
@@ -79,21 +80,20 @@
 	.logo-wrap {
 		display: flex;
 		align-items: baseline;
-		gap: 0.5rem;
+		gap: 0.6rem;
 	}
 
 	.logo-main {
-		font-size: 0.95rem;
+		font-size: 1rem;
 		font-weight: 700;
-		letter-spacing: 0.02em;
+		letter-spacing: -0.01em;
 		color: var(--text);
 	}
 
 	.logo-sub {
-		font-size: 0.6rem;
+		font-size: 0.65rem;
 		color: var(--text-muted);
-		text-transform: uppercase;
-		letter-spacing: 0.08em;
+		letter-spacing: 0.03em;
 	}
 
 	.header-center {

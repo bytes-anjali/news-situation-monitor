@@ -76,22 +76,37 @@
 		{/if}
 	</div>
 
+	{#if trends.length > 0}
+		<div class="trends-bar">
+			<span class="trends-label">🔥 Trending</span>
+			{#each trends as t}
+				<a
+					href={t.shareUrl}
+					target="_blank"
+					rel="noopener noreferrer"
+					class="trend-chip"
+					title="View on Google Trends"
+				>{t.title}</a>
+			{/each}
+		</div>
+	{/if}
+
 	<div class="cards">
 		{#each sortedCards as card (card.id)}
 			{@const matchedTrend = getMatchingTrend(card.headline)}
 			<article class="card" class:trending={matchedTrend !== null}>
 				<div class="card-top">
-					<div class="card-badges">
-						{#if matchedTrend !== null}
-							<a
-								href={matchedTrend.shareUrl}
-								target="_blank"
-								rel="noopener noreferrer"
-								class="trend-badge"
-								title="Trending on Google: {matchedTrend.title}"
-							>🔥 Trending</a>
-						{/if}
-					</div>
+					{#if matchedTrend !== null}
+						<a
+							href={matchedTrend.shareUrl}
+							target="_blank"
+							rel="noopener noreferrer"
+							class="trend-badge"
+							title="Trending: {matchedTrend.title}"
+						>🔥 Trending</a>
+					{:else}
+						<span></span>
+					{/if}
 					<span class="timestamp">{relativeTime(card.timestamp)}</span>
 				</div>
 
@@ -106,7 +121,7 @@
 							class="source-chip"
 							style="--chip-color:{feedColors[src.feedId] ?? '#888'}"
 						>
-							<span class="source-dot">●</span>{src.name}
+							<span class="dot">●</span>{src.name}
 						</a>
 					{/each}
 				</div>
@@ -114,7 +129,7 @@
 		{/each}
 
 		{#if $news.cards.length === 0 && !$news.loading}
-			<div class="empty">Click Refresh to load news</div>
+			<div class="empty">Click Refresh News to load stories</div>
 		{/if}
 	</div>
 </Panel>
@@ -124,27 +139,27 @@
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.5rem;
-		margin-top: 0.4rem;
+		margin-top: 0.35rem;
 	}
 
 	.feed-dot {
-		font-size: 0.55rem;
+		font-size: 0.6rem;
 	}
 
 	.news-toolbar {
 		display: flex;
 		align-items: center;
 		gap: 0.75rem;
-		margin-bottom: 0.5rem;
+		margin-bottom: 0.6rem;
 	}
 
 	.refresh-news-btn {
-		font-size: 0.6rem;
+		font-size: 0.65rem;
 		font-family: inherit;
-		padding: 0.25rem 0.6rem;
+		padding: 0.3rem 0.7rem;
 		background: transparent;
 		border: 1px solid var(--border);
-		border-radius: 3px;
+		border-radius: 4px;
 		color: var(--text-dim);
 		cursor: pointer;
 		transition: all 0.15s;
@@ -157,26 +172,66 @@
 	}
 
 	.refresh-news-btn:disabled {
-		opacity: 0.5;
+		opacity: 0.4;
 		cursor: not-allowed;
 	}
 
 	.news-updated {
-		font-size: 0.55rem;
+		font-size: 0.6rem;
 		color: var(--text-muted);
 	}
 
+	/* Google Trends strip */
+	.trends-bar {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 0.35rem;
+		background: rgba(210, 153, 34, 0.08);
+		border: 1px solid rgba(210, 153, 34, 0.2);
+		border-radius: 5px;
+		padding: 0.4rem 0.6rem;
+		margin-bottom: 0.7rem;
+	}
+
+	.trends-label {
+		font-size: 0.6rem;
+		font-weight: 700;
+		color: var(--yellow);
+		flex-shrink: 0;
+		margin-right: 0.15rem;
+	}
+
+	.trend-chip {
+		font-size: 0.6rem;
+		color: var(--text-dim);
+		background: var(--bg);
+		border: 1px solid var(--border);
+		border-radius: 12px;
+		padding: 0.15rem 0.5rem;
+		text-decoration: none;
+		white-space: nowrap;
+		transition: border-color 0.15s, color 0.15s;
+	}
+
+	.trend-chip:hover {
+		border-color: var(--yellow);
+		color: var(--yellow);
+		text-decoration: none;
+	}
+
+	/* News cards */
 	.cards {
 		display: flex;
 		flex-direction: column;
-		gap: 0.4rem;
+		gap: 0.5rem;
 	}
 
 	.card {
 		background: var(--bg);
 		border: 1px solid var(--border);
-		border-radius: 3px;
-		padding: 0.6rem 0.7rem;
+		border-radius: 5px;
+		padding: 0.7rem 0.85rem;
 		transition: border-color 0.15s;
 	}
 
@@ -185,33 +240,23 @@
 	}
 
 	.card.trending {
-		border-color: rgba(255, 160, 0, 0.35);
-	}
-
-	.card.trending:hover {
-		border-color: rgba(255, 160, 0, 0.6);
+		border-left: 3px solid rgba(210, 153, 34, 0.6);
 	}
 
 	.card-top {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		margin-bottom: 0.3rem;
-		gap: 0.5rem;
-		min-height: 1.2rem;
-	}
-
-	.card-badges {
-		display: flex;
-		gap: 0.3rem;
+		margin-bottom: 0.35rem;
+		min-height: 1.1rem;
 	}
 
 	.trend-badge {
-		font-size: 0.5rem;
+		font-size: 0.55rem;
 		font-weight: 700;
-		color: #ffa000;
-		background: rgba(255, 160, 0, 0.12);
-		border: 1px solid rgba(255, 160, 0, 0.3);
+		color: var(--yellow);
+		background: rgba(210, 153, 34, 0.1);
+		border: 1px solid rgba(210, 153, 34, 0.25);
 		border-radius: 3px;
 		padding: 0.1rem 0.35rem;
 		text-decoration: none;
@@ -219,38 +264,41 @@
 	}
 
 	.trend-badge:hover {
-		background: rgba(255, 160, 0, 0.22);
+		background: rgba(210, 153, 34, 0.18);
+		text-decoration: none;
 	}
 
 	.timestamp {
-		font-size: 0.55rem;
+		font-size: 0.58rem;
 		color: var(--text-muted);
 		flex-shrink: 0;
+		font-variant-numeric: tabular-nums;
 	}
 
 	.headline {
-		font-size: 0.75rem;
-		font-weight: 600;
+		font-size: 0.82rem;
+		font-weight: 500;
 		color: var(--text);
-		line-height: 1.4;
-		margin: 0 0 0.4rem 0;
+		line-height: 1.45;
+		margin: 0 0 0.45rem 0;
 	}
 
 	.card-sources {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.3rem;
+		gap: 0.4rem;
 	}
 
 	.source-chip {
 		display: inline-flex;
 		align-items: center;
 		gap: 0.2rem;
-		font-size: 0.5rem;
+		font-size: 0.58rem;
 		font-weight: 600;
 		color: var(--chip-color);
 		text-decoration: none;
-		opacity: 0.85;
+		opacity: 0.75;
+		transition: opacity 0.12s;
 	}
 
 	.source-chip:hover {
@@ -258,15 +306,14 @@
 		text-decoration: underline;
 	}
 
-	.source-chip .source-dot {
-		font-size: 0.45rem;
-		line-height: 1;
+	.dot {
+		font-size: 0.4rem;
 	}
 
 	.empty {
-		font-size: 0.65rem;
+		font-size: 0.7rem;
 		color: var(--text-muted);
 		text-align: center;
-		padding: 2rem 1rem;
+		padding: 2.5rem 1rem;
 	}
 </style>

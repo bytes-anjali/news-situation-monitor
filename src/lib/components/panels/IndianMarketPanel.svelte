@@ -99,8 +99,8 @@
 		display: block;
 		background: var(--bg);
 		border: 1px solid var(--border);
-		border-radius: 3px;
-		padding: 0.5rem 0.6rem;
+		border-radius: 5px;
+		padding: 0.6rem 0.7rem;
 		text-decoration: none;
 		transition: background 0.15s, border-color 0.15s;
 	}
@@ -112,29 +112,31 @@
 	}
 
 	.market-tile.up {
-		border-left: 2px solid var(--green);
+		border-left: 3px solid var(--green);
 	}
 
 	.market-tile.down {
-		border-left: 2px solid var(--red);
+		border-left: 3px solid var(--red);
 	}
 
 	.tile-name {
-		font-size: 0.6rem;
+		font-size: 0.65rem;
 		color: var(--text-dim);
-		margin-bottom: 0.2rem;
+		margin-bottom: 0.25rem;
 	}
 
 	.tile-price {
-		font-size: 0.85rem;
-		font-weight: 600;
+		font-size: 0.9rem;
+		font-weight: 700;
 		color: var(--text);
 		margin-bottom: 0.15rem;
+		font-family: 'SF Mono', Monaco, 'Fira Code', monospace;
 	}
 
 	.tile-change {
-		font-size: 0.65rem;
-		font-weight: 500;
+		font-size: 0.68rem;
+		font-weight: 600;
+		font-family: 'SF Mono', Monaco, 'Fira Code', monospace;
 	}
 
 	.market-tile.up .tile-change {
@@ -148,16 +150,16 @@
 	.sectors-grid {
 		display: flex;
 		flex-direction: column;
-		gap: 0.2rem;
+		gap: 0.25rem;
 	}
 
 	.sector-row {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		padding: 0.25rem 0.5rem;
+		padding: 0.3rem 0.6rem;
 		background: var(--bg);
-		border-radius: 3px;
+		border-radius: 4px;
 		border: 1px solid var(--border);
 		text-decoration: none;
 		transition: background 0.15s, border-color 0.15s;
@@ -170,13 +172,14 @@
 	}
 
 	.sector-name {
-		font-size: 0.65rem;
+		font-size: 0.68rem;
 		color: var(--text-dim);
 	}
 
 	.sector-change {
-		font-size: 0.65rem;
-		font-weight: 600;
+		font-size: 0.68rem;
+		font-weight: 700;
+		font-family: 'SF Mono', Monaco, 'Fira Code', monospace;
 	}
 
 	.sector-row.up .sector-change {
