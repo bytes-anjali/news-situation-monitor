@@ -18,23 +18,34 @@ interface ChartResponse {
 	};
 }
 
-async function fetchYahooChart(symbol: string): Promise<ChartMeta | null> {
-	const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=2d`;
-	try {
-		const response = await fetchWithProxy(url);
-		const text = await response.text();
-		const data: ChartResponse = JSON.parse(text);
-		return data?.chart?.result?.[0]?.meta ?? null;
-	} catch (err) {
-		logger.warn('Markets', `Failed to fetch ${symbol}: ${(err as Error).message}`);
-		return null;
-	}
+export function yahooFinanceUrl(symbol: string): string {
+	return `https://finance.yahoo.com/quote/${encodeURIComponent(symbol)}`;
 }
 
-async function fetchSymbolsBatch(
-	symbols: string[]
-): Promise<Map<string, ChartMeta>> {
-	const results = await Promise.all(symbols.map((s) => fetchYahooChart(s).then((m) => ({ symbol: s, meta: m }))));
+async function fetchYahooChart(symbol: string): Promise<ChartMeta | null> {
+	const encoded = encodeURIComponent(symbol);
+	const t = Date.now(); // cache-bust so proxies don't serve stale responses
+
+	// Try query1 then query2 for resilience
+	for (const host of ['query1', 'query2'] as const) {
+		const url = `https://${host}.finance.yahoo.com/v8/finance/chart/${encoded}?interval=1d&range=2d&_t=${t}`;
+		try {
+			const response = await fetchWithProxy(url);
+			const text = await response.text();
+			const data: ChartResponse = JSON.parse(text);
+			const meta = data?.chart?.result?.[0]?.meta;
+			if (meta?.regularMarketPrice != null) return meta;
+		} catch (err) {
+			logger.warn('Markets', `${host} failed for ${symbol}: ${(err as Error).message}`);
+		}
+	}
+	return null;
+}
+
+async function fetchSymbolsBatch(symbols: string[]): Promise<Map<string, ChartMeta>> {
+	const results = await Promise.all(
+		symbols.map((s) => fetchYahooChart(s).then((m) => ({ symbol: s, meta: m })))
+	);
 	const map = new Map<string, ChartMeta>();
 	for (const { symbol, meta } of results) {
 		if (meta) map.set(symbol, meta);
@@ -45,7 +56,6 @@ async function fetchSymbolsBatch(
 function calcChange(meta: ChartMeta): { change: number; changePercent: number } {
 	const price = meta.regularMarketPrice ?? 0;
 	const prev = meta.chartPreviousClose ?? price;
-	// Prefer explicit fields if available, otherwise derive from prev close
 	const change = meta.regularMarketChange ?? price - prev;
 	const changePercent =
 		meta.regularMarketChangePercent ?? (prev !== 0 ? ((price - prev) / prev) * 100 : 0);
@@ -81,7 +91,6 @@ export async function fetchMarkets(): Promise<MarketsData> {
 export async function fetchGainersLosers(): Promise<GainersLosers> {
 	const symbols = NIFTY50_SYMBOLS.map((s) => s.symbol);
 
-	// Fetch in batches of 10 with small delays to avoid rate limits
 	const BATCH_SIZE = 10;
 	const allMeta = new Map<string, ChartMeta>();
 

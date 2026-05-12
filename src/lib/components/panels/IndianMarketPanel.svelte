@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Panel from '$lib/components/common/Panel.svelte';
 	import { markets } from '$lib/stores';
+	import { yahooFinanceUrl } from '$lib/api/markets';
 
 	function fmt(price: number, sym: string): string {
 		if (sym === 'INR=X') return price.toFixed(2);
@@ -12,18 +13,34 @@
 		const sign = pct >= 0 ? '+' : '';
 		return `${sign}${pct.toFixed(2)}%`;
 	}
+
+	const lastUpdatedText = $derived(
+		$markets.lastUpdated
+			? `as of ${new Date($markets.lastUpdated).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' })}`
+			: ''
+	);
 </script>
 
 <Panel id="markets" title="Indian Market Overview" loading={$markets.loading} error={$markets.error}>
 	{#if $markets.indices.length > 0}
-		<div class="section-label">Indices</div>
+		<div class="section-label">
+			Indices
+			{#if lastUpdatedText}<span class="updated-at">{lastUpdatedText}</span>{/if}
+		</div>
 		<div class="indices-grid">
 			{#each $markets.indices as item}
-				<div class="market-tile" class:up={item.changePercent >= 0} class:down={item.changePercent < 0}>
+				<a
+					class="market-tile"
+					class:up={item.changePercent >= 0}
+					class:down={item.changePercent < 0}
+					href={yahooFinanceUrl(item.symbol)}
+					target="_blank"
+					rel="noopener noreferrer"
+				>
 					<div class="tile-name">{item.name}</div>
 					<div class="tile-price">{fmt(item.price, item.symbol)}</div>
 					<div class="tile-change">{fmtPct(item.changePercent)}</div>
-				</div>
+				</a>
 			{/each}
 		</div>
 	{/if}
@@ -32,10 +49,17 @@
 		<div class="section-label" style="margin-top:0.75rem">Sectors</div>
 		<div class="sectors-grid">
 			{#each $markets.sectors as item}
-				<div class="sector-row" class:up={item.changePercent >= 0} class:down={item.changePercent < 0}>
+				<a
+					class="sector-row"
+					class:up={item.changePercent >= 0}
+					class:down={item.changePercent < 0}
+					href={yahooFinanceUrl(item.symbol)}
+					target="_blank"
+					rel="noopener noreferrer"
+				>
 					<span class="sector-name">{item.name}</span>
 					<span class="sector-change">{fmtPct(item.changePercent)}</span>
-				</div>
+				</a>
 			{/each}
 		</div>
 	{/if}
@@ -47,11 +71,22 @@
 
 <style>
 	.section-label {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
 		font-size: 0.55rem;
 		text-transform: uppercase;
 		letter-spacing: 0.08em;
 		color: var(--text-muted);
 		margin-bottom: 0.4rem;
+	}
+
+	.updated-at {
+		font-size: 0.5rem;
+		color: var(--text-muted);
+		text-transform: none;
+		letter-spacing: 0;
+		opacity: 0.7;
 	}
 
 	.indices-grid {
@@ -61,10 +96,19 @@
 	}
 
 	.market-tile {
+		display: block;
 		background: var(--bg);
 		border: 1px solid var(--border);
 		border-radius: 3px;
 		padding: 0.5rem 0.6rem;
+		text-decoration: none;
+		transition: background 0.15s, border-color 0.15s;
+	}
+
+	.market-tile:hover {
+		background: var(--surface-hover);
+		border-color: var(--border-light);
+		text-decoration: none;
 	}
 
 	.market-tile.up {
@@ -115,6 +159,14 @@
 		background: var(--bg);
 		border-radius: 3px;
 		border: 1px solid var(--border);
+		text-decoration: none;
+		transition: background 0.15s, border-color 0.15s;
+	}
+
+	.sector-row:hover {
+		background: var(--surface-hover);
+		border-color: var(--border-light);
+		text-decoration: none;
 	}
 
 	.sector-name {

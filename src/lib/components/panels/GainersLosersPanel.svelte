@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Panel from '$lib/components/common/Panel.svelte';
 	import { markets } from '$lib/stores';
+	import { yahooFinanceUrl } from '$lib/api/markets';
 
 	interface Props {
 		onRefresh?: () => void;
@@ -35,13 +36,18 @@
 			<div class="col-header gainers-header">Gainers</div>
 			{#if $markets.gainers.length > 0}
 				{#each $markets.gainers as stock}
-					<div class="stock-row">
+					<a
+						class="stock-row"
+						href={yahooFinanceUrl(stock.symbol)}
+						target="_blank"
+						rel="noopener noreferrer"
+					>
 						<div class="stock-left">
 							<span class="stock-name">{stock.name}</span>
 							<span class="stock-price">₹{fmtPrice(stock.price)}</span>
 						</div>
 						<span class="stock-pct up">{fmtPct(stock.changePercent)}</span>
-					</div>
+					</a>
 				{/each}
 			{:else if !$markets.gainersLoading}
 				<div class="empty-col">Click "Check Today"</div>
@@ -54,13 +60,18 @@
 			<div class="col-header losers-header">Losers</div>
 			{#if $markets.losers.length > 0}
 				{#each $markets.losers as stock}
-					<div class="stock-row">
+					<a
+						class="stock-row"
+						href={yahooFinanceUrl(stock.symbol)}
+						target="_blank"
+						rel="noopener noreferrer"
+					>
 						<div class="stock-left">
 							<span class="stock-name">{stock.name}</span>
 							<span class="stock-price">₹{fmtPrice(stock.price)}</span>
 						</div>
 						<span class="stock-pct down">{fmtPct(stock.changePercent)}</span>
-					</div>
+					</a>
 				{/each}
 			{:else if !$markets.gainersLoading}
 				<div class="empty-col">Click "Check Today"</div>
@@ -102,6 +113,14 @@
 		justify-content: space-between;
 		padding: 0.3rem 0;
 		border-bottom: 1px solid var(--border);
+		text-decoration: none;
+		border-radius: 2px;
+		transition: background 0.1s;
+	}
+
+	.stock-row:hover {
+		background: var(--surface-hover);
+		text-decoration: none;
 	}
 
 	.stock-row:last-child {
