@@ -97,7 +97,7 @@ function deduplicateAndGroup(items: RawItem[]): NewsCard[] {
 
 		let matched = false;
 		for (const group of groups) {
-			if (jaccardSimilarity(group.tokens, tokens) >= 0.5) {
+			if (jaccardSimilarity(group.tokens, tokens) >= 0.3) {
 				if (!group.sources.has(item.feedId)) {
 					group.sources.set(item.feedId, {
 						feedId: item.feedId,
