@@ -3,10 +3,12 @@
 	import { Header, Dashboard } from '$lib/components/layout';
 	import { IndianMarketPanel, GainersLosersPanel, ContentSpottingPanel } from '$lib/components/panels';
 	import { markets, news, refresh } from '$lib/stores';
-	import { fetchMarkets, fetchGainersLosers, fetchIndianNews } from '$lib/api';
+	import { fetchMarkets, fetchGainersLosers, fetchIndianNews, fetchBusinessTrends, type TrendItem } from '$lib/api';
 	import { getNewsRefreshInterval } from '$lib/utils/marketHours';
 
 	const MARKET_REFRESH_MS = 60 * 1000;
+
+	let trends = $state<TrendItem[]>([]);
 
 	async function loadMarkets() {
 		markets.setLoading(true);
@@ -38,13 +40,19 @@
 		}
 	}
 
+	async function loadTrends() {
+		try {
+			trends = await fetchBusinessTrends();
+		} catch { /* silent — trends are optional */ }
+	}
+
 	async function handleRefresh() {
 		refresh.startRefresh();
 		const safetyTimer = setTimeout(() => refresh.endRefresh(['Refresh timed out']), 45000);
 		try {
 			await loadMarkets();
 			refresh.nextStage();
-			await loadNews();
+			await Promise.all([loadNews(), loadTrends()]);
 			refresh.endRefresh();
 		} catch (err) {
 			refresh.endRefresh([String(err)]);
@@ -62,7 +70,7 @@
 
 	async function silentRefreshNews() {
 		try {
-			const cards = await fetchIndianNews();
+			const [cards] = await Promise.all([fetchIndianNews(), loadTrends()]);
 			news.setCards(cards);
 		} catch { /* silent */ }
 	}
@@ -105,7 +113,7 @@
 				<GainersLosersPanel onRefresh={loadGainersLosers} />
 			</div>
 			<div class="panel-slot news-slot">
-				<ContentSpottingPanel onRefresh={loadNews} />
+				<ContentSpottingPanel onRefresh={loadNews} {trends} />
 			</div>
 		</Dashboard>
 	</main>
