@@ -14,3 +14,5 @@ export {
 	getToday,
 	latLonToXY
 } from './format';
+
+export { isMarketOpen, getMarketStatus, getNewsRefreshInterval, marketStatusLabel, type MarketStatus } from './marketHours';

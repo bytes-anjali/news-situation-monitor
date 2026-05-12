@@ -1,5 +1,7 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { isRefreshing, lastRefresh } from '$lib/stores';
+	import { getMarketStatus, marketStatusLabel, type MarketStatus } from '$lib/utils/marketHours';
 
 	interface Props {
 		onRefresh?: () => void;
@@ -7,11 +9,20 @@
 
 	let { onRefresh }: Props = $props();
 
+	let marketStatus = $state<MarketStatus>(getMarketStatus());
+
 	const lastRefreshText = $derived(
 		$lastRefresh
 			? `Updated ${new Date($lastRefresh).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
 			: 'Not yet refreshed'
 	);
+
+	onMount(() => {
+		const timer = setInterval(() => {
+			marketStatus = getMarketStatus();
+		}, 60 * 1000);
+		return () => clearInterval(timer);
+	});
 </script>
 
 <header class="header">
@@ -31,6 +42,10 @@
 	</div>
 
 	<div class="header-right">
+		<span class="market-badge" class:open={marketStatus === 'open'} class:closed={marketStatus !== 'open'}>
+			<span class="badge-dot"></span>
+			{marketStatusLabel(marketStatus)}
+		</span>
 		<button
 			class="refresh-btn"
 			onclick={onRefresh}
@@ -98,6 +113,48 @@
 
 	.header-right {
 		flex-shrink: 0;
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.market-badge {
+		display: flex;
+		align-items: center;
+		gap: 0.3rem;
+		font-size: 0.55rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		padding: 0.2rem 0.5rem;
+		border-radius: 3px;
+		border: 1px solid var(--border);
+	}
+
+	.market-badge.open {
+		color: var(--green);
+		border-color: var(--green);
+	}
+
+	.market-badge.closed {
+		color: var(--text-muted);
+		border-color: var(--border);
+	}
+
+	.badge-dot {
+		width: 5px;
+		height: 5px;
+		border-radius: 50%;
+		background: currentColor;
+	}
+
+	.market-badge.open .badge-dot {
+		animation: pulse 2s ease-in-out infinite;
+	}
+
+	@keyframes pulse {
+		0%, 100% { opacity: 1; }
+		50% { opacity: 0.3; }
 	}
 
 	.refresh-btn {

@@ -2,6 +2,12 @@
 	import Panel from '$lib/components/common/Panel.svelte';
 	import { markets } from '$lib/stores';
 
+	interface Props {
+		onRefresh?: () => void;
+	}
+
+	let { onRefresh }: Props = $props();
+
 	function fmtPrice(p: number): string {
 		return p.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 	}
@@ -13,6 +19,17 @@
 </script>
 
 <Panel id="gainers" title="Top Gainers / Losers" loading={$markets.gainersLoading} error={$markets.error}>
+	{#snippet actions()}
+		<button
+			class="check-btn"
+			onclick={onRefresh}
+			disabled={$markets.gainersLoading}
+			title="Fetch today's gainers & losers"
+		>
+			↻ Check Today
+		</button>
+	{/snippet}
+
 	<div class="gl-grid">
 		<div class="col">
 			<div class="col-header gainers-header">Gainers</div>
@@ -27,7 +44,7 @@
 					</div>
 				{/each}
 			{:else if !$markets.gainersLoading}
-				<div class="empty-col">No data</div>
+				<div class="empty-col">Click "Check Today"</div>
 			{/if}
 		</div>
 
@@ -46,7 +63,7 @@
 					</div>
 				{/each}
 			{:else if !$markets.gainersLoading}
-				<div class="empty-col">No data</div>
+				<div class="empty-col">Click "Check Today"</div>
 			{/if}
 		</div>
 	</div>
@@ -131,5 +148,27 @@
 		font-size: 0.6rem;
 		color: var(--text-muted);
 		padding: 0.5rem 0;
+	}
+
+	.check-btn {
+		font-size: 0.55rem;
+		font-family: inherit;
+		padding: 0.2rem 0.5rem;
+		background: transparent;
+		border: 1px solid var(--border);
+		border-radius: 3px;
+		color: var(--text-dim);
+		cursor: pointer;
+		transition: all 0.15s;
+	}
+
+	.check-btn:hover:not(:disabled) {
+		background: var(--border);
+		color: var(--text);
+	}
+
+	.check-btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
 	}
 </style>
