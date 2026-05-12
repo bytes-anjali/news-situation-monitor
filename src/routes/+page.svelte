@@ -4,7 +4,7 @@
 	import { IndianMarketPanel, GainersLosersPanel, ContentSpottingPanel } from '$lib/components/panels';
 	import { markets, news, refresh } from '$lib/stores';
 	import { fetchMarkets, fetchGainersLosers, fetchIndianNews } from '$lib/api';
-	import { isMarketOpen, getNewsRefreshInterval } from '$lib/utils/marketHours';
+	import { getNewsRefreshInterval } from '$lib/utils/marketHours';
 
 	const MARKET_REFRESH_MS = 60 * 1000;
 
@@ -54,7 +54,6 @@
 	}
 
 	async function silentRefreshMarkets() {
-		if (!isMarketOpen()) return;
 		try {
 			const data = await fetchMarkets();
 			markets.setMarkets(data.indices, data.sectors);

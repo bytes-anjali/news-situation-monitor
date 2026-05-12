@@ -3,6 +3,13 @@ import { INDICES, SECTORS } from '$lib/config/indianMarkets';
 import { NIFTY50_SYMBOLS } from '$lib/config/nifty50';
 import type { MarketQuote, StockQuote, MarketsData, GainersLosers } from '$lib/types';
 
+interface ChartMeta {
+	regularMarketPrice?: number;
+	chartPreviousClose?: number;
+	regularMarketChange?: number;
+	regularMarketChangePercent?: number;
+}
+
 interface V7Quote {
 	symbol: string;
 	regularMarketPrice?: number;
@@ -19,71 +26,111 @@ export function yahooFinanceUrl(symbol: string): string {
 	return `https://finance.yahoo.com/quote/${encodeURIComponent(symbol)}`;
 }
 
-async function fetchV7Batch(symbols: string[]): Promise<Map<string, V7Quote>> {
-	const t = Date.now();
-	const syms = encodeURIComponent(symbols.join(','));
-
-	for (const host of ['query1', 'query2'] as const) {
-		const url = `https://${host}.finance.yahoo.com/v7/finance/quote?symbols=${syms}&_t=${t}`;
-		try {
-			const response = await fetchWithProxy(url);
-			const text = await response.text();
-			const data: V7Response = JSON.parse(text);
-			const quotes = data?.quoteResponse?.result ?? [];
-			if (quotes.length > 0) {
-				const map = new Map<string, V7Quote>();
-				for (const q of quotes) map.set(q.symbol, q);
-				return map;
-			}
-		} catch (err) {
-			logger.warn('Markets', `${host} v7 batch failed: ${(err as Error).message}`);
-		}
+// v8/chart — no crumb needed, works reliably through proxies
+async function fetchChart(symbol: string): Promise<ChartMeta | null> {
+	const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=2d&_t=${Date.now()}`;
+	try {
+		const res = await fetchWithProxy(url);
+		const data = JSON.parse(await res.text());
+		const meta = data?.chart?.result?.[0]?.meta;
+		return meta?.regularMarketPrice != null ? meta : null;
+	} catch (err) {
+		logger.warn('Markets', `chart failed for ${symbol}: ${(err as Error).message}`);
+		return null;
 	}
-	return new Map();
 }
 
-function buildChange(q: V7Quote): { change: number; changePercent: number } {
-	const price = q.regularMarketPrice ?? 0;
-	const prev = q.chartPreviousClose ?? price;
-	return {
-		change: q.regularMarketChange ?? price - prev,
-		changePercent: q.regularMarketChangePercent ?? (prev !== 0 ? ((price - prev) / prev) * 100 : 0)
-	};
+// v7/quote batch — for 50 Nifty stocks (acceptable if it works, falls back gracefully)
+async function fetchV7Batch(symbols: string[]): Promise<Map<string, V7Quote>> {
+	const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols.join(','))}&_t=${Date.now()}`;
+	try {
+		const res = await fetchWithProxy(url);
+		const data: V7Response = JSON.parse(await res.text());
+		const quotes = data?.quoteResponse?.result ?? [];
+		const map = new Map<string, V7Quote>();
+		for (const q of quotes) {
+			if (q.regularMarketPrice != null) map.set(q.symbol, q);
+		}
+		return map;
+	} catch (err) {
+		logger.warn('Markets', `v7 batch failed: ${(err as Error).message}`);
+		return new Map();
+	}
+}
+
+function calcChange(price: number, prev: number, explicitChange?: number, explicitPct?: number) {
+	const change = explicitChange ?? price - prev;
+	const changePercent = explicitPct ?? (prev !== 0 ? ((price - prev) / prev) * 100 : 0);
+	return { change, changePercent };
 }
 
 export async function fetchMarkets(): Promise<MarketsData> {
 	const allSymbols = [...INDICES, ...SECTORS];
-	// Single batch request — all 10 symbols in one proxy call
-	const quoteMap = await fetchV7Batch(allSymbols.map((s) => s.symbol));
+
+	// Parallel v8/chart — one proxy call per symbol, no crumb needed
+	const metas = await Promise.all(allSymbols.map(s => fetchChart(s.symbol)));
+	const metaMap = new Map(allSymbols.map((s, i) => [s.symbol, metas[i]]));
 
 	function buildQuote(sym: { symbol: string; name: string; type: 'index' | 'sector' }): MarketQuote {
-		const q = quoteMap.get(sym.symbol);
-		if (!q) return { symbol: sym.symbol, name: sym.name, price: 0, change: 0, changePercent: 0, type: sym.type };
-		const { change, changePercent } = buildChange(q);
-		return { symbol: sym.symbol, name: sym.name, price: q.regularMarketPrice ?? 0, change, changePercent, type: sym.type };
+		const m = metaMap.get(sym.symbol);
+		if (!m?.regularMarketPrice) {
+			return { symbol: sym.symbol, name: sym.name, price: 0, change: 0, changePercent: 0, type: sym.type };
+		}
+		const price = m.regularMarketPrice;
+		const prev = m.chartPreviousClose ?? price;
+		const { change, changePercent } = calcChange(price, prev, m.regularMarketChange, m.regularMarketChangePercent);
+		return { symbol: sym.symbol, name: sym.name, price, change, changePercent, type: sym.type };
 	}
 
 	return { indices: INDICES.map(buildQuote), sectors: SECTORS.map(buildQuote) };
 }
 
 export async function fetchGainersLosers(): Promise<GainersLosers> {
-	const symbols = NIFTY50_SYMBOLS.map((s) => s.symbol);
-	const nameMap = new Map(NIFTY50_SYMBOLS.map((s) => [s.symbol, s.name]));
+	const symbols = NIFTY50_SYMBOLS.map(s => s.symbol);
+	const nameMap = new Map(NIFTY50_SYMBOLS.map(s => [s.symbol, s.name]));
 
-	// Two batches of 25 — 2 proxy calls total instead of 50
-	const [map1, map2] = await Promise.all([
+	// Try v7/quote batch first (2 calls for 50 symbols); fall back to v8/chart per-symbol
+	let [map1, map2] = await Promise.all([
 		fetchV7Batch(symbols.slice(0, 25)),
 		fetchV7Batch(symbols.slice(25))
 	]);
-	const allQuotes = new Map([...map1, ...map2]);
 
-	const stocks: StockQuote[] = [];
-	for (const [symbol, q] of allQuotes) {
-		if (q.regularMarketPrice == null) continue;
-		const { change, changePercent } = buildChange(q);
-		stocks.push({ symbol, name: nameMap.get(symbol) ?? symbol, price: q.regularMarketPrice, change, changePercent });
+	// If v7 returned nothing, fall back to v8/chart (serial, batched)
+	if (map1.size === 0 && map2.size === 0) {
+		const BATCH = 10;
+		const combined = new Map<string, V7Quote>();
+		for (let i = 0; i < symbols.length; i += BATCH) {
+			const batch = symbols.slice(i, i + BATCH);
+			const metas = await Promise.all(batch.map(s => fetchChart(s)));
+			batch.forEach((sym, idx) => {
+				const m = metas[idx];
+				if (m?.regularMarketPrice != null) {
+					combined.set(sym, {
+						symbol: sym,
+						regularMarketPrice: m.regularMarketPrice,
+						regularMarketChange: m.regularMarketChange,
+						regularMarketChangePercent: m.regularMarketChangePercent,
+						chartPreviousClose: m.chartPreviousClose
+					});
+				}
+			});
+			if (i + BATCH < symbols.length) await new Promise(r => setTimeout(r, 200));
+		}
+		map1 = combined;
+		map2 = new Map();
 	}
 
-	const sorted = [...stocks].sort((a, b) => b.changePercent - a.changePercent);
+	const allQuotes = new Map([...map1, ...map2]);
+	const stocks: StockQuote[] = [];
+
+	for (const [symbol, q] of allQuotes) {
+		if (q.regularMarketPrice == null) continue;
+		const price = q.regularMarketPrice;
+		const prev = q.chartPreviousClose ?? price;
+		const { change, changePercent } = calcChange(price, prev, q.regularMarketChange, q.regularMarketChangePercent);
+		stocks.push({ symbol, name: nameMap.get(symbol) ?? symbol, price, change, changePercent });
+	}
+
+	const sorted = stocks.sort((a, b) => b.changePercent - a.changePercent);
 	return { gainers: sorted.slice(0, 5), losers: sorted.slice(-5).reverse() };
 }
