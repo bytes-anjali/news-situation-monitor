@@ -32,9 +32,6 @@ export interface NewsCard {
 	headline: string;
 	sources: NewsSource[];
 	timestamp: Date;
-	keyTerm: string;
-	searchVolume: number;
-	isSpot: boolean;
 }
 
 export interface MarketsData {

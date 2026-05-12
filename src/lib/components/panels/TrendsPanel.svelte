@@ -36,8 +36,8 @@
 					<span class="rank">#{i + 1}</span>
 					<div class="trend-info">
 						<span class="trend-title">{trend.title}</span>
-						{#if trend.entityName && trend.entityName !== trend.title}
-							<span class="trend-entity">{trend.entityName}</span>
+						{#if trend.traffic}
+							<span class="trend-traffic">{trend.traffic}</span>
 						{/if}
 					</div>
 					<span class="trend-arrow">↗</span>
@@ -105,12 +105,9 @@
 		text-overflow: ellipsis;
 	}
 
-	.trend-entity {
+	.trend-traffic {
 		font-size: 0.55rem;
 		color: var(--text-muted);
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
 	}
 
 	.trend-arrow {

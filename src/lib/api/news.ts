@@ -1,6 +1,5 @@
 import { fetchWithProxy } from '$lib/config/api';
 import { INDIAN_NEWS_FEEDS } from '$lib/config/feeds';
-import { scoreHeadline } from '$lib/config/keywords';
 import type { NewsCard, NewsSource } from '$lib/types';
 
 interface RawItem {
@@ -39,7 +38,6 @@ function parseRSS(xmlText: string, feedId: string, feedName: string, feedColor: 
 				item.querySelector('title')?.textContent?.trim().replace(/^<!\[CDATA\[|\]\]>$/g, '') ?? '';
 			const title = cleanTitle(rawTitle);
 
-			// RSS 2.0: <link>URL</link> or Atom: <link href="URL"/>
 			const linkEl = item.querySelector('link');
 			const link =
 				linkEl?.getAttribute('href') ||
@@ -100,7 +98,6 @@ function deduplicateAndGroup(items: RawItem[]): NewsCard[] {
 		let matched = false;
 		for (const group of groups) {
 			if (jaccardSimilarity(group.tokens, tokens) >= 0.5) {
-				// Same story — add source if not already present
 				if (!group.sources.has(item.feedId)) {
 					group.sources.set(item.feedId, {
 						feedId: item.feedId,
@@ -109,10 +106,7 @@ function deduplicateAndGroup(items: RawItem[]): NewsCard[] {
 						color: item.feedColor
 					});
 				}
-				// Keep most recent timestamp
-				if (ts > group.timestamp) {
-					group.timestamp = ts;
-				}
+				if (ts > group.timestamp) group.timestamp = ts;
 				matched = true;
 				break;
 			}
@@ -123,15 +117,7 @@ function deduplicateAndGroup(items: RawItem[]): NewsCard[] {
 				headline: item.title,
 				tokens,
 				sources: new Map([
-					[
-						item.feedId,
-						{
-							feedId: item.feedId,
-							name: item.feedName,
-							url: item.link,
-							color: item.feedColor
-						}
-					]
+					[item.feedId, { feedId: item.feedId, name: item.feedName, url: item.link, color: item.feedColor }]
 				]),
 				timestamp: ts
 			});
@@ -140,24 +126,17 @@ function deduplicateAndGroup(items: RawItem[]): NewsCard[] {
 
 	return groups
 		.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
-		.map((g, i) => {
-			const scored = scoreHeadline(g.headline);
-			return {
-				id: `card-${i}-${g.timestamp.getTime()}`,
-				headline: g.headline,
-				sources: Array.from(g.sources.values()),
-				timestamp: g.timestamp,
-				keyTerm: scored.term,
-				searchVolume: scored.volume,
-				isSpot: scored.isSpot
-			};
-		});
+		.map((g, i) => ({
+			id: `card-${i}-${g.timestamp.getTime()}`,
+			headline: g.headline,
+			sources: Array.from(g.sources.values()),
+			timestamp: g.timestamp
+		}));
 }
 
 export async function fetchIndianNews(): Promise<NewsCard[]> {
 	const allItems: RawItem[] = [];
 
-	// Fetch feeds sequentially with a short delay to avoid hammering proxies
 	for (const feed of INDIAN_NEWS_FEEDS) {
 		try {
 			const response = await fetchWithProxy(feed.url);
@@ -167,7 +146,6 @@ export async function fetchIndianNews(): Promise<NewsCard[]> {
 		} catch (err) {
 			console.warn(`[News] Failed to fetch ${feed.name}:`, err);
 		}
-		// Small delay between feed requests
 		await new Promise((r) => setTimeout(r, 300));
 	}
 

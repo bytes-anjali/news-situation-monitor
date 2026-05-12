@@ -12,15 +12,12 @@ export {
 
 export {
 	news,
-	filteredNews,
 	isNewsLoading,
-	newsFilter,
 	allNewsItems,
 	isLoading,
 	hasErrors,
 	alerts,
-	type NewsState,
-	type NewsFilter
+	type NewsState
 } from './news';
 
 export {

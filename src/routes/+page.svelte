@@ -54,7 +54,7 @@
 		}
 	}
 
-	// Full manual refresh — shows "Refreshing..." in header
+	// Full manual refresh — shows "Refreshing..." in header; trends excluded
 	async function handleRefresh() {
 		refresh.startRefresh();
 
@@ -63,7 +63,7 @@
 		try {
 			await Promise.all([loadMarkets(), loadGainersLosers()]);
 			refresh.nextStage();
-			await Promise.all([loadNews(), loadTrends()]);
+			await loadNews();
 			refresh.endRefresh();
 		} catch (err) {
 			refresh.endRefresh([String(err)]);
@@ -72,7 +72,6 @@
 		}
 	}
 
-	// Silent background refreshes — no header spinner
 	async function silentRefreshMarkets() {
 		if (!isMarketOpen()) return;
 		try {
@@ -85,9 +84,8 @@
 
 	async function silentRefreshNews() {
 		try {
-			const [cards, newTrends] = await Promise.all([fetchIndianNews(), fetchBusinessTrends()]);
+			const cards = await fetchIndianNews();
 			news.setCards(cards);
-			trends = newTrends;
 		} catch {
 			// silent
 		}
@@ -96,10 +94,8 @@
 	onMount(() => {
 		handleRefresh();
 
-		// Markets: every 60s, skips automatically when market is closed
 		const marketTimer = setInterval(silentRefreshMarkets, MARKET_REFRESH_MS);
 
-		// News + trends: self-rescheduling — 15min during market hours, 60min outside
 		let newsTimer: ReturnType<typeof setTimeout> | null = null;
 		function scheduleNews() {
 			newsTimer = setTimeout(async () => {

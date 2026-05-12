@@ -1,14 +1,11 @@
 import { writable, derived } from 'svelte/store';
 import type { NewsCard } from '$lib/types';
 
-export type NewsFilter = 'all' | 'spot' | 'skip';
-
 export interface NewsState {
 	cards: NewsCard[];
 	loading: boolean;
 	error: string | null;
 	lastUpdated: number | null;
-	filter: NewsFilter;
 }
 
 function createNewsStore() {
@@ -16,8 +13,7 @@ function createNewsStore() {
 		cards: [],
 		loading: false,
 		error: null,
-		lastUpdated: null,
-		filter: 'all'
+		lastUpdated: null
 	});
 
 	return {
@@ -33,26 +29,15 @@ function createNewsStore() {
 
 		setError(error: string) {
 			update((s) => ({ ...s, loading: false, error }));
-		},
-
-		setFilter(filter: NewsFilter) {
-			update((s) => ({ ...s, filter }));
 		}
 	};
 }
 
 export const news = createNewsStore();
 
-export const filteredNews = derived(news, ($n) => {
-	if ($n.filter === 'spot') return $n.cards.filter((c) => c.isSpot);
-	if ($n.filter === 'skip') return $n.cards.filter((c) => !c.isSpot);
-	return $n.cards;
-});
-
 export const isNewsLoading = derived(news, ($n) => $n.loading);
-export const newsFilter = derived(news, ($n) => $n.filter);
-// Kept for any legacy imports
 export const allNewsItems = derived(news, ($n) => $n.cards);
+// Legacy compat
 export const isLoading = isNewsLoading;
 export const hasErrors = derived(news, ($n) => $n.error !== null);
 export const alerts = derived(news, () => []);
