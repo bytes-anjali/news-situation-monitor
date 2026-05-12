@@ -71,14 +71,14 @@ function tokenize(text: string): Set<string> {
 	);
 }
 
-function jaccardSimilarity(a: Set<string>, b: Set<string>): number {
-	if (a.size === 0 && b.size === 0) return 1;
-	let intersectionCount = 0;
+function similarity(a: Set<string>, b: Set<string>): { jaccard: number; shared: number } {
+	if (a.size === 0 && b.size === 0) return { jaccard: 1, shared: 0 };
+	let shared = 0;
 	for (const word of a) {
-		if (b.has(word)) intersectionCount++;
+		if (b.has(word)) shared++;
 	}
-	const unionSize = a.size + b.size - intersectionCount;
-	return unionSize === 0 ? 0 : intersectionCount / unionSize;
+	const unionSize = a.size + b.size - shared;
+	return { jaccard: unionSize === 0 ? 0 : shared / unionSize, shared };
 }
 
 function deduplicateAndGroup(items: RawItem[]): NewsCard[] {
@@ -97,7 +97,8 @@ function deduplicateAndGroup(items: RawItem[]): NewsCard[] {
 
 		let matched = false;
 		for (const group of groups) {
-			if (jaccardSimilarity(group.tokens, tokens) >= 0.3) {
+			const { jaccard, shared } = similarity(group.tokens, tokens);
+			if (jaccard >= 0.2 && shared >= 2) {
 				if (!group.sources.has(item.feedId)) {
 					group.sources.set(item.feedId, {
 						feedId: item.feedId,
@@ -107,6 +108,8 @@ function deduplicateAndGroup(items: RawItem[]): NewsCard[] {
 					});
 				}
 				if (ts > group.timestamp) group.timestamp = ts;
+				// Union tokens so later articles can also match this group
+				for (const t of tokens) group.tokens.add(t);
 				matched = true;
 				break;
 			}
