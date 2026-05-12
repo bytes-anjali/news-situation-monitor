@@ -12,7 +12,7 @@
 	let { trends, loading, error = null, onRefresh }: Props = $props();
 </script>
 
-<Panel id="trends" title="Trending: Business & Finance" {loading} {error}>
+<Panel id="trends" title="Trending Tickers — India" {loading} {error}>
 	{#snippet actions()}
 		<button
 			class="refresh-btn"
@@ -35,22 +35,20 @@
 				>
 					<span class="rank">#{i + 1}</span>
 					<div class="trend-info">
-						<span class="trend-title">{trend.title}</span>
-						{#if trend.traffic}
-							<span class="trend-traffic">{trend.traffic}</span>
-						{/if}
+						<span class="trend-title">{trend.name}</span>
+						<span class="trend-traffic">{trend.symbol}</span>
 					</div>
 					<span class="trend-arrow">↗</span>
 				</a>
 			{/each}
 		{:else if !loading}
-			<div class="empty">No trending B&F topics found</div>
+			<div class="empty">Click ↻ to load trending tickers</div>
 		{/if}
 	</div>
 
 	<div class="source-note">
-		<a href="https://trends.google.com/trends/explore?cat=b&geo=IN" target="_blank" rel="noopener noreferrer">
-			Google Trends · Business & Finance · India
+		<a href="https://finance.yahoo.com/trending-tickers" target="_blank" rel="noopener noreferrer">
+			Yahoo Finance · Trending IN
 		</a>
 	</div>
 </Panel>

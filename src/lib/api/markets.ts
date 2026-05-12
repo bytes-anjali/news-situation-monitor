@@ -3,127 +3,87 @@ import { INDICES, SECTORS } from '$lib/config/indianMarkets';
 import { NIFTY50_SYMBOLS } from '$lib/config/nifty50';
 import type { MarketQuote, StockQuote, MarketsData, GainersLosers } from '$lib/types';
 
-interface ChartMeta {
+interface V7Quote {
+	symbol: string;
 	regularMarketPrice?: number;
-	chartPreviousClose?: number;
 	regularMarketChange?: number;
 	regularMarketChangePercent?: number;
-	currency?: string;
+	chartPreviousClose?: number;
 }
 
-interface ChartResponse {
-	chart?: {
-		result?: Array<{ meta: ChartMeta }>;
-		error?: unknown;
-	};
+interface V7Response {
+	quoteResponse?: { result?: V7Quote[] };
 }
 
 export function yahooFinanceUrl(symbol: string): string {
 	return `https://finance.yahoo.com/quote/${encodeURIComponent(symbol)}`;
 }
 
-async function fetchYahooChart(symbol: string): Promise<ChartMeta | null> {
-	const encoded = encodeURIComponent(symbol);
-	const t = Date.now(); // cache-bust so proxies don't serve stale responses
+async function fetchV7Batch(symbols: string[]): Promise<Map<string, V7Quote>> {
+	const t = Date.now();
+	const syms = encodeURIComponent(symbols.join(','));
 
-	// Try query1 then query2 for resilience
 	for (const host of ['query1', 'query2'] as const) {
-		const url = `https://${host}.finance.yahoo.com/v8/finance/chart/${encoded}?interval=1d&range=2d&_t=${t}`;
+		const url = `https://${host}.finance.yahoo.com/v7/finance/quote?symbols=${syms}&_t=${t}`;
 		try {
 			const response = await fetchWithProxy(url);
 			const text = await response.text();
-			const data: ChartResponse = JSON.parse(text);
-			const meta = data?.chart?.result?.[0]?.meta;
-			if (meta?.regularMarketPrice != null) return meta;
+			const data: V7Response = JSON.parse(text);
+			const quotes = data?.quoteResponse?.result ?? [];
+			if (quotes.length > 0) {
+				const map = new Map<string, V7Quote>();
+				for (const q of quotes) map.set(q.symbol, q);
+				return map;
+			}
 		} catch (err) {
-			logger.warn('Markets', `${host} failed for ${symbol}: ${(err as Error).message}`);
+			logger.warn('Markets', `${host} v7 batch failed: ${(err as Error).message}`);
 		}
 	}
-	return null;
+	return new Map();
 }
 
-async function fetchSymbolsBatch(symbols: string[]): Promise<Map<string, ChartMeta>> {
-	const results = await Promise.all(
-		symbols.map((s) => fetchYahooChart(s).then((m) => ({ symbol: s, meta: m })))
-	);
-	const map = new Map<string, ChartMeta>();
-	for (const { symbol, meta } of results) {
-		if (meta) map.set(symbol, meta);
-	}
-	return map;
-}
-
-function calcChange(meta: ChartMeta): { change: number; changePercent: number } {
-	const price = meta.regularMarketPrice ?? 0;
-	const prev = meta.chartPreviousClose ?? price;
-	const change = meta.regularMarketChange ?? price - prev;
-	const changePercent =
-		meta.regularMarketChangePercent ?? (prev !== 0 ? ((price - prev) / prev) * 100 : 0);
-	return { change, changePercent };
+function buildChange(q: V7Quote): { change: number; changePercent: number } {
+	const price = q.regularMarketPrice ?? 0;
+	const prev = q.chartPreviousClose ?? price;
+	return {
+		change: q.regularMarketChange ?? price - prev,
+		changePercent: q.regularMarketChangePercent ?? (prev !== 0 ? ((price - prev) / prev) * 100 : 0)
+	};
 }
 
 export async function fetchMarkets(): Promise<MarketsData> {
 	const allSymbols = [...INDICES, ...SECTORS];
-	const quoteMap = await fetchSymbolsBatch(allSymbols.map((s) => s.symbol));
+	// Single batch request — all 10 symbols in one proxy call
+	const quoteMap = await fetchV7Batch(allSymbols.map((s) => s.symbol));
 
 	function buildQuote(sym: { symbol: string; name: string; type: 'index' | 'sector' }): MarketQuote {
-		const meta = quoteMap.get(sym.symbol);
-		if (!meta) {
-			return { symbol: sym.symbol, name: sym.name, price: 0, change: 0, changePercent: 0, type: sym.type };
-		}
-		const { change, changePercent } = calcChange(meta);
-		return {
-			symbol: sym.symbol,
-			name: sym.name,
-			price: meta.regularMarketPrice ?? 0,
-			change,
-			changePercent,
-			type: sym.type
-		};
+		const q = quoteMap.get(sym.symbol);
+		if (!q) return { symbol: sym.symbol, name: sym.name, price: 0, change: 0, changePercent: 0, type: sym.type };
+		const { change, changePercent } = buildChange(q);
+		return { symbol: sym.symbol, name: sym.name, price: q.regularMarketPrice ?? 0, change, changePercent, type: sym.type };
 	}
 
-	return {
-		indices: INDICES.map(buildQuote),
-		sectors: SECTORS.map(buildQuote)
-	};
+	return { indices: INDICES.map(buildQuote), sectors: SECTORS.map(buildQuote) };
 }
 
 export async function fetchGainersLosers(): Promise<GainersLosers> {
 	const symbols = NIFTY50_SYMBOLS.map((s) => s.symbol);
-
-	const BATCH_SIZE = 10;
-	const allMeta = new Map<string, ChartMeta>();
-
-	for (let i = 0; i < symbols.length; i += BATCH_SIZE) {
-		const batch = symbols.slice(i, i + BATCH_SIZE);
-		const batchMap = await fetchSymbolsBatch(batch);
-		for (const [sym, meta] of batchMap) {
-			allMeta.set(sym, meta);
-		}
-		if (i + BATCH_SIZE < symbols.length) {
-			await new Promise((r) => setTimeout(r, 300));
-		}
-	}
-
 	const nameMap = new Map(NIFTY50_SYMBOLS.map((s) => [s.symbol, s.name]));
 
+	// Two batches of 25 — 2 proxy calls total instead of 50
+	const [map1, map2] = await Promise.all([
+		fetchV7Batch(symbols.slice(0, 25)),
+		fetchV7Batch(symbols.slice(25))
+	]);
+	const allQuotes = new Map([...map1, ...map2]);
+
 	const stocks: StockQuote[] = [];
-	for (const [symbol, meta] of allMeta) {
-		if (meta.regularMarketPrice == null) continue;
-		const { change, changePercent } = calcChange(meta);
-		stocks.push({
-			symbol,
-			name: nameMap.get(symbol) ?? symbol,
-			price: meta.regularMarketPrice,
-			change,
-			changePercent
-		});
+	for (const [symbol, q] of allQuotes) {
+		if (q.regularMarketPrice == null) continue;
+		const { change, changePercent } = buildChange(q);
+		stocks.push({ symbol, name: nameMap.get(symbol) ?? symbol, price: q.regularMarketPrice, change, changePercent });
 	}
 
 	const sorted = [...stocks].sort((a, b) => b.changePercent - a.changePercent);
-
-	return {
-		gainers: sorted.slice(0, 5),
-		losers: sorted.slice(-5).reverse()
-	};
+	return { gainers: sorted.slice(0, 5), losers: sorted.slice(-5).reverse() };
 }

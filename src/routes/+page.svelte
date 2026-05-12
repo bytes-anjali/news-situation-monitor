@@ -61,7 +61,7 @@
 		const safetyTimer = setTimeout(() => refresh.endRefresh(['Refresh timed out']), 45000);
 
 		try {
-			await Promise.all([loadMarkets(), loadGainersLosers()]);
+			await loadMarkets();
 			refresh.nextStage();
 			await loadNews();
 			refresh.endRefresh();
