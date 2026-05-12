@@ -1,48 +1,39 @@
-import { fetchWithProxy, logger } from '$lib/config/api';
-import { NIFTY50_SYMBOLS } from '$lib/config/nifty50';
+import { TRENDS_WORKER_URL, logger } from '$lib/config/api';
 
 export interface TrendItem {
-	symbol: string;
-	name: string;
+	title: string;
 	shareUrl: string;
 }
 
-interface TrendingResponse {
-	finance?: {
-		result?: Array<{
-			quotes?: Array<{ symbol: string }>;
-		}>;
-		error?: unknown;
-	};
-}
-
-const nameMap = new Map(NIFTY50_SYMBOLS.map((s) => [s.symbol, s.name]));
-
-function symbolToName(symbol: string): string {
-	return nameMap.get(symbol) ?? symbol.replace(/\.NS$/, '');
+interface WorkerTrend {
+	title: string;
+	shareUrl: string;
 }
 
 export async function fetchBusinessTrends(): Promise<TrendItem[]> {
-	const t = Date.now();
+	// Calls our Cloudflare Worker which fetches Google Trends B&F server-side.
+	// Cloudflare IPs are not blocked by Google unlike shared CORS proxy IPs.
+	const controller = new AbortController();
+	const timer = setTimeout(() => controller.abort(), 10000);
 
-	for (const host of ['query1', 'query2'] as const) {
-		const url = `https://${host}.finance.yahoo.com/v1/finance/trending/IN?count=10&_t=${t}`;
-		try {
-			const response = await fetchWithProxy(url);
-			const text = await response.text();
-			const data: TrendingResponse = JSON.parse(text);
-			const quotes = data?.finance?.result?.[0]?.quotes ?? [];
-			if (quotes.length > 0) {
-				return quotes.slice(0, 5).map((q) => ({
-					symbol: q.symbol,
-					name: symbolToName(q.symbol),
-					shareUrl: `https://finance.yahoo.com/quote/${encodeURIComponent(q.symbol)}`
-				}));
-			}
-		} catch (err) {
-			logger.warn('Trends', `${host} failed: ${(err as Error).message}`);
+	try {
+		const response = await fetch(TRENDS_WORKER_URL, { signal: controller.signal });
+		clearTimeout(timer);
+
+		if (!response.ok) {
+			throw new Error(`Worker returned ${response.status}`);
 		}
-	}
 
-	throw new Error('Failed to fetch trending tickers');
+		const data: WorkerTrend[] | { error: string } = await response.json();
+
+		if ('error' in data) {
+			throw new Error(data.error);
+		}
+
+		return data.filter((t) => t.title).slice(0, 5);
+	} catch (err) {
+		clearTimeout(timer);
+		logger.warn('Trends', (err as Error).message);
+		throw err;
+	}
 }
