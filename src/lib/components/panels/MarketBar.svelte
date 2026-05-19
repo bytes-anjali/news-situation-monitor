@@ -79,6 +79,7 @@
 						rel="noopener noreferrer"
 					>
 						<span class="tile-name">{item.name}</span>
+						<span class="tile-val">{fmt(item.price, item.symbol)}</span>
 						<span class="tile-pct">{fmtPct(item.changePercent)}</span>
 					</a>
 				{/each}
