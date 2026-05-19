@@ -1,9 +1,26 @@
 services:
+  # Static site — SvelteKit with adapter-static
   - type: web
     name: angelone-bytes-dashboard
-    runtime: node
+    runtime: static
     buildCommand: npm install && npm run build
-    startCommand: node build
+    staticPublishPath: build
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: public, max-age=0, must-revalidate
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /app.html
+
+  # Express API — OpenAI summarizer
+  - type: web
+    name: angelone-api
+    runtime: node
+    rootDir: api
+    buildCommand: npm install
+    startCommand: node server.js
     envVars:
       - key: OPENAI_API_KEY
         sync: false
