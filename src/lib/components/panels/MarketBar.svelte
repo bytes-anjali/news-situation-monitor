@@ -21,302 +21,280 @@
 		return p.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 	}
 
-	const lastUpdatedText = $derived(
+	const updatedAt = $derived(
 		$markets.lastUpdated
-			? `${new Date($markets.lastUpdated).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' })}`
+			? new Date($markets.lastUpdated).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' })
 			: ''
 	);
 </script>
 
-<div class="market-bar">
-	<!-- Indices -->
-	<div class="bar-section indices-section">
-		<span class="section-label">Indices</span>
+<div class="market-row">
+
+	<!-- ── Indices ───────────────────────────────────── -->
+	<div class="section">
+		<div class="section-head">
+			<span class="section-title">Indices</span>
+			{#if updatedAt}<span class="updated">{updatedAt}</span>{/if}
+		</div>
 		{#if $markets.loading}
-			<span class="loading-text">Loading…</span>
-		{:else if $markets.indices.length > 0}
-			<div class="indices-row">
+			<div class="loading">Loading…</div>
+		{:else}
+			<div class="tiles">
 				{#each $markets.indices as item}
 					<a
-						class="index-chip"
+						class="tile"
 						class:up={item.changePercent >= 0}
 						class:down={item.changePercent < 0}
 						href={yahooFinanceUrl(item.symbol)}
 						target="_blank"
 						rel="noopener noreferrer"
 					>
-						<span class="chip-name">{item.name}</span>
-						<span class="chip-value">{fmt(item.price, item.symbol)}</span>
-						<span class="chip-pct">{fmtPct(item.changePercent)}</span>
+						<span class="tile-name">{item.name}</span>
+						<span class="tile-val">{fmt(item.price, item.symbol)}</span>
+						<span class="tile-pct">{fmtPct(item.changePercent)}</span>
 					</a>
 				{/each}
 			</div>
-			{#if lastUpdatedText}
-				<span class="updated-at">{lastUpdatedText}</span>
-			{/if}
-		{:else}
-			<span class="empty-text">No data</span>
 		{/if}
 	</div>
 
-	<!-- Sectors -->
-	{#if $markets.sectors.length > 0}
-		<div class="bar-section sectors-section">
-			<span class="section-label">Sectors</span>
-			<div class="sectors-row">
+	<div class="divider"></div>
+
+	<!-- ── Sectors ───────────────────────────────────── -->
+	<div class="section">
+		<div class="section-head">
+			<span class="section-title">Sectors</span>
+		</div>
+		{#if $markets.loading}
+			<div class="loading">Loading…</div>
+		{:else}
+			<div class="tiles">
 				{#each $markets.sectors as item}
 					<a
-						class="sector-chip"
+						class="tile"
 						class:up={item.changePercent >= 0}
 						class:down={item.changePercent < 0}
 						href={yahooFinanceUrl(item.symbol)}
 						target="_blank"
 						rel="noopener noreferrer"
 					>
-						<span class="chip-name">{item.name}</span>
-						<span class="chip-pct">{fmtPct(item.changePercent)}</span>
+						<span class="tile-name">{item.name}</span>
+						<span class="tile-pct">{fmtPct(item.changePercent)}</span>
 					</a>
 				{/each}
 			</div>
-		</div>
-	{/if}
+		{/if}
+	</div>
 
-	<!-- Gainers & Losers -->
-	<div class="bar-section gl-section">
-		<div class="gl-col">
-			<span class="section-label gainers-label">▲ Gainers</span>
+	<div class="divider"></div>
+
+	<!-- ── Gainers / Losers ──────────────────────────── -->
+	<div class="section gl-section">
+		<div class="gl-half">
+			<div class="section-head">
+				<span class="section-title gainers-title">▲ Gainers</span>
+			</div>
 			{#if $markets.gainersLoading}
-				<span class="loading-text">Loading…</span>
+				<div class="loading">Loading…</div>
 			{:else if $markets.gainers.length > 0}
-				<div class="gl-row">
-					{#each $markets.gainers as stock}
-						<a
-							class="gl-chip up"
-							href={yahooFinanceUrl(stock.symbol)}
-							target="_blank"
-							rel="noopener noreferrer"
-						>
-							<span class="chip-name">{stock.name}</span>
-							<span class="chip-price">₹{fmtPrice(stock.price)}</span>
-							<span class="chip-pct">{fmtPct(stock.changePercent)}</span>
+				<div class="tiles">
+					{#each $markets.gainers as s}
+						<a class="tile up" href={yahooFinanceUrl(s.symbol)} target="_blank" rel="noopener noreferrer">
+							<span class="tile-name">{s.name}</span>
+							<span class="tile-sub">₹{fmtPrice(s.price)}</span>
+							<span class="tile-pct">{fmtPct(s.changePercent)}</span>
 						</a>
 					{/each}
 				</div>
 			{:else}
-				<button class="load-btn" onclick={onRefreshGainers}>Load</button>
+				<button class="load-btn" onclick={onRefreshGainers}>Load gainers/losers</button>
 			{/if}
 		</div>
 
-		<div class="gl-divider"></div>
+		<div class="divider-v"></div>
 
-		<div class="gl-col">
-			<span class="section-label losers-label">▼ Losers</span>
+		<div class="gl-half">
+			<div class="section-head">
+				<span class="section-title losers-title">▼ Losers</span>
+			</div>
 			{#if $markets.gainersLoading}
-				<span class="loading-text">Loading…</span>
+				<div class="loading">Loading…</div>
 			{:else if $markets.losers.length > 0}
-				<div class="gl-row">
-					{#each $markets.losers as stock}
-						<a
-							class="gl-chip down"
-							href={yahooFinanceUrl(stock.symbol)}
-							target="_blank"
-							rel="noopener noreferrer"
-						>
-							<span class="chip-name">{stock.name}</span>
-							<span class="chip-price">₹{fmtPrice(stock.price)}</span>
-							<span class="chip-pct">{fmtPct(stock.changePercent)}</span>
+				<div class="tiles">
+					{#each $markets.losers as s}
+						<a class="tile down" href={yahooFinanceUrl(s.symbol)} target="_blank" rel="noopener noreferrer">
+							<span class="tile-name">{s.name}</span>
+							<span class="tile-sub">₹{fmtPrice(s.price)}</span>
+							<span class="tile-pct">{fmtPct(s.changePercent)}</span>
 						</a>
 					{/each}
 				</div>
-			{:else}
-				<button class="load-btn" onclick={onRefreshGainers}>Load</button>
 			{/if}
 		</div>
 	</div>
+
 </div>
 
 <style>
-	.market-bar {
+	.market-row {
 		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
+		align-items: stretch;
+		gap: 0;
 		background: var(--surface);
 		border: 1px solid var(--border);
 		border-radius: 6px;
-		padding: 0.7rem 1rem;
+		padding: 0.75rem 0;
+		margin-bottom: 0.5rem;
+		overflow-x: auto;
+	}
+
+	/* ── Sections ── */
+	.section {
+		display: flex;
+		flex-direction: column;
+		padding: 0 1rem;
+		min-width: 0;
+		flex-shrink: 0;
+	}
+
+	.gl-section {
+		display: flex;
+		flex-direction: row;
+		gap: 0;
+		padding: 0;
+		flex: 1;
+	}
+
+	.gl-half {
+		display: flex;
+		flex-direction: column;
+		padding: 0 1rem;
+		min-width: 0;
+		flex: 1;
+	}
+
+	/* ── Headers ── */
+	.section-head {
+		display: flex;
+		align-items: baseline;
+		gap: 0.5rem;
 		margin-bottom: 0.5rem;
 	}
 
-	.bar-section {
-		display: flex;
-		align-items: flex-start;
-		gap: 0.6rem;
-		flex-wrap: wrap;
-	}
-
-	.section-label {
+	.section-title {
 		font-size: 0.52rem;
 		font-weight: 700;
 		text-transform: uppercase;
 		letter-spacing: 0.08em;
 		color: var(--text-muted);
-		flex-shrink: 0;
-		padding-top: 0.35rem;
-		min-width: 3.5rem;
+		white-space: nowrap;
 	}
 
-	.gainers-label { color: var(--green); }
-	.losers-label  { color: var(--red); }
+	.gainers-title { color: var(--green); }
+	.losers-title  { color: var(--red); }
 
-	/* ── Indices ── */
-	.indices-section { align-items: center; }
+	.updated {
+		font-size: 0.48rem;
+		color: var(--text-muted);
+		opacity: 0.7;
+	}
 
-	.indices-row {
+	/* ── Dividers ── */
+	.divider {
+		width: 1px;
+		background: var(--border);
+		flex-shrink: 0;
+		align-self: stretch;
+	}
+
+	.divider-v {
+		width: 1px;
+		background: var(--border);
+		flex-shrink: 0;
+		align-self: stretch;
+	}
+
+	/* ── Tile grid ── */
+	.tiles {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.4rem;
-		flex: 1;
+		gap: 0.35rem;
+		align-content: flex-start;
 	}
 
-	.index-chip {
+	.tile {
 		display: flex;
-		align-items: center;
-		gap: 0.4rem;
+		flex-direction: column;
+		gap: 0.1rem;
 		background: var(--bg);
 		border: 1px solid var(--border);
 		border-radius: 5px;
-		padding: 0.3rem 0.6rem;
+		padding: 0.35rem 0.55rem;
 		text-decoration: none;
 		transition: border-color 0.15s;
-		white-space: nowrap;
+		min-width: 5.5rem;
 	}
 
-	.index-chip:hover { border-color: var(--border-light); text-decoration: none; }
-	.index-chip.up  { border-left: 2px solid var(--green); }
-	.index-chip.down { border-left: 2px solid var(--red); }
+	.tile:hover {
+		border-color: var(--border-light);
+		text-decoration: none;
+	}
 
-	.chip-name {
-		font-size: 0.62rem;
+	.tile.up  { border-top: 2px solid var(--green); }
+	.tile.down { border-top: 2px solid var(--red); }
+
+	.tile-name {
+		font-size: 0.58rem;
 		color: var(--text-dim);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		max-width: 7rem;
 	}
 
-	.chip-value {
-		font-size: 0.72rem;
+	.tile-val {
+		font-size: 0.78rem;
 		font-weight: 700;
 		color: var(--text);
 		font-family: 'SF Mono', Monaco, 'Fira Code', monospace;
+		white-space: nowrap;
 	}
 
-	.chip-pct {
-		font-size: 0.65rem;
-		font-weight: 600;
+	.tile-sub {
+		font-size: 0.55rem;
+		color: var(--text-muted);
 		font-family: 'SF Mono', Monaco, 'Fira Code', monospace;
 	}
 
-	.index-chip.up  .chip-pct { color: var(--green); }
-	.index-chip.down .chip-pct { color: var(--red); }
-
-	.updated-at {
-		font-size: 0.5rem;
-		color: var(--text-muted);
-		flex-shrink: 0;
-		align-self: center;
-	}
-
-	/* ── Sectors ── */
-	.sectors-row {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.35rem;
-		flex: 1;
-	}
-
-	.sector-chip {
-		display: flex;
-		align-items: center;
-		gap: 0.3rem;
-		background: var(--bg);
-		border: 1px solid var(--border);
-		border-radius: 4px;
-		padding: 0.2rem 0.5rem;
-		text-decoration: none;
+	.tile-pct {
+		font-size: 0.65rem;
+		font-weight: 600;
+		font-family: 'SF Mono', Monaco, 'Fira Code', monospace;
 		white-space: nowrap;
-		transition: border-color 0.15s;
 	}
 
-	.sector-chip:hover { border-color: var(--border-light); text-decoration: none; }
-	.sector-chip.up  .chip-pct { color: var(--green); }
-	.sector-chip.down .chip-pct { color: var(--red); }
-	.sector-chip .chip-name { font-size: 0.6rem; color: var(--text-dim); }
-	.sector-chip .chip-pct  { font-size: 0.62rem; font-weight: 600; font-family: 'SF Mono', Monaco, 'Fira Code', monospace; }
+	.tile.up   .tile-pct { color: var(--green); }
+	.tile.down .tile-pct { color: var(--red); }
 
-	/* ── Gainers / Losers ── */
-	.gl-section {
-		display: flex;
-		gap: 0.6rem;
-		align-items: flex-start;
-		flex-wrap: wrap;
-	}
-
-	.gl-col {
-		display: flex;
-		align-items: flex-start;
-		gap: 0.5rem;
-		flex: 1;
-		min-width: 0;
-	}
-
-	.gl-divider {
-		width: 1px;
-		background: var(--border);
-		align-self: stretch;
-		flex-shrink: 0;
-	}
-
-	.gl-row {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.35rem;
-		flex: 1;
-	}
-
-	.gl-chip {
-		display: flex;
-		align-items: center;
-		gap: 0.35rem;
-		background: var(--bg);
-		border: 1px solid var(--border);
-		border-radius: 4px;
-		padding: 0.25rem 0.5rem;
-		text-decoration: none;
-		white-space: nowrap;
-		transition: border-color 0.15s;
-	}
-
-	.gl-chip:hover { border-color: var(--border-light); text-decoration: none; }
-	.gl-chip .chip-name  { font-size: 0.62rem; font-weight: 600; color: var(--text); }
-	.gl-chip .chip-price { font-size: 0.55rem; color: var(--text-muted); font-family: 'SF Mono', Monaco, 'Fira Code', monospace; }
-	.gl-chip.up   .chip-pct { color: var(--green); }
-	.gl-chip.down .chip-pct { color: var(--red); }
-	.gl-chip .chip-pct { font-size: 0.62rem; font-weight: 600; font-family: 'SF Mono', Monaco, 'Fira Code', monospace; }
-
-	.loading-text, .empty-text {
+	.loading {
 		font-size: 0.6rem;
 		color: var(--text-muted);
-		padding-top: 0.3rem;
 	}
 
 	.load-btn {
 		font-size: 0.58rem;
 		font-family: inherit;
-		padding: 0.2rem 0.6rem;
+		padding: 0.25rem 0.7rem;
 		background: transparent;
 		border: 1px solid var(--border);
 		border-radius: 3px;
 		color: var(--text-dim);
 		cursor: pointer;
-		margin-top: 0.2rem;
+		white-space: nowrap;
 	}
 
-	.load-btn:hover { background: var(--border); color: var(--text); }
+	.load-btn:hover {
+		background: var(--border);
+		color: var(--text);
+	}
 </style>
