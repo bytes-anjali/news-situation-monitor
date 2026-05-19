@@ -1,5 +1,3 @@
-import { SUMMARIZE_WORKER_URL } from '$lib/config/api';
-
 export interface ArticleSummary {
 	title: string;
 	summary: string;
@@ -13,16 +11,13 @@ export function fetchSummary(articleUrl: string): Promise<ArticleSummary> {
 
 	const promise = (async (): Promise<ArticleSummary> => {
 		const res = await fetch(
-			`${SUMMARIZE_WORKER_URL}?url=${encodeURIComponent(articleUrl)}`,
+			`/api/summarize?url=${encodeURIComponent(articleUrl)}`,
 			{ signal: AbortSignal.timeout(20000) }
 		);
-		if (!res.ok) throw new Error(`Summarize worker: ${res.status}`);
-		const data = await res.json();
-		if (data.error) throw new Error(data.error);
-		return data as ArticleSummary;
+		if (!res.ok) throw new Error(`summarize: ${res.status}`);
+		return res.json();
 	})();
 
-	// Remove from cache on failure so retries are possible
 	promise.catch(() => cache.delete(articleUrl));
 	cache.set(articleUrl, promise);
 	return promise;

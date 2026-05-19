@@ -1,8 +1,6 @@
 /**
- * Cloudflare Worker — AngelOne Bytes proxy
- * Routes:
- *   GET /trends   — Google Trends B&F India (no auth)
- *   GET /summarize?url=<encoded> — AI summary via OpenAI (requires OPENAI_API_KEY secret)
+ * Cloudflare Worker — Google Trends B&F proxy for AngelOne Bytes
+ * GET /trends — returns top 5 B&F trending topics for India
  */
 
 const CORS = {
@@ -78,123 +76,22 @@ async function tryDailyRss() {
 	}));
 }
 
-// ── /summarize ────────────────────────────────────────────────────────────────
-
-function stripHtml(html) {
-	return html
-		.replace(/<script[\s\S]*?<\/script>/gi, '')
-		.replace(/<style[\s\S]*?<\/style>/gi, '')
-		.replace(/<[^>]+>/g, ' ')
-		.replace(/\s+/g, ' ')
-		.trim();
-}
-
-async function handleSummarize(request, env) {
-	const apiKey = env?.OPENAI_API_KEY;
-	if (!apiKey) return json({ error: 'OPENAI_API_KEY not configured' }, 500);
-
-	const url = new URL(request.url).searchParams.get('url');
-	if (!url) return json({ error: 'url param required' }, 400);
-
-	// Check Cloudflare cache first
-	const cache = caches.default;
-	const cacheKey = new Request(`https://summary-cache/${encodeURIComponent(url)}`);
-	const cached = await cache.match(cacheKey);
-	if (cached) return new Response(cached.body, { headers: { ...CORS, 'Content-Type': 'application/json' } });
-
-	// Fetch article
-	let articleText = '';
-	try {
-		const articleRes = await fetch(url, {
-			headers: { ...BROWSER_HEADERS, 'Referer': 'https://www.google.com/' },
-			cf: { timeout: 8000 }
-		});
-		if (articleRes.ok) {
-			articleText = stripHtml(await articleRes.text()).slice(0, 4000);
-		}
-	} catch {
-		// proceed with empty text — OpenAI will use URL context
-	}
-
-	// Call OpenAI
-	const openaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
-		method: 'POST',
-		headers: {
-			'Authorization': `Bearer ${apiKey}`,
-			'Content-Type': 'application/json'
-		},
-		body: JSON.stringify({
-			model: 'gpt-4o-mini',
-			max_tokens: 300,
-			temperature: 0.2,
-			messages: [
-				{
-					role: 'system',
-					content: 'You are a financial news summarizer for AngelOne, an Indian stock market YouTube channel network covering investing, mutual funds, personal finance, and trading. Be factual, include key numbers, and explain why Indian retail investors should care. Respond only with valid JSON.'
-				},
-				{
-					role: 'user',
-					content: `Summarize this article as JSON:
-{"title": "Clean factual headline (8-12 words, not clickbait)", "summary": "2-3 sentences: what happened + key numbers/figures + impact for Indian retail investors"}
-
-Article URL: ${url}
-Article text: ${articleText || '(Could not fetch — use URL context only)'}`
-				}
-			]
-		})
-	});
-
-	if (!openaiRes.ok) {
-		const err = await openaiRes.text();
-		return json({ error: `OpenAI error: ${openaiRes.status}`, detail: err }, 502);
-	}
-
-	const openaiData = await openaiRes.json();
-	const content = openaiData.choices?.[0]?.message?.content ?? '';
-
-	let result;
-	try {
-		const jsonMatch = content.match(/\{[\s\S]*\}/);
-		result = JSON.parse(jsonMatch?.[0] ?? content);
-	} catch {
-		return json({ error: 'Failed to parse OpenAI response', raw: content }, 502);
-	}
-
-	// Cache for 6 hours
-	const responseBody = JSON.stringify(result);
-	const toCache = new Response(responseBody, {
-		headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=21600' }
-	});
-	await cache.put(cacheKey, toCache);
-
-	return json(result);
-}
-
-// ── Router ────────────────────────────────────────────────────────────────────
-
 export default {
-	async fetch(request, env) {
+	async fetch(request) {
 		if (request.method === 'OPTIONS') return new Response(null, { headers: CORS });
 
 		const { pathname } = new URL(request.url);
+		if (pathname !== '/trends') return new Response('Not found', { status: 404, headers: CORS });
 
-		if (pathname === '/trends') {
-			for (const attempt of [tryRealtimeApi, tryDailyRss]) {
-				try {
-					const results = await attempt();
-					if (results.length > 0) return json(results);
-				} catch (e) {
-					console.error(attempt.name, e.message);
-				}
+		for (const attempt of [tryRealtimeApi, tryDailyRss]) {
+			try {
+				const results = await attempt();
+				if (results.length > 0) return json(results);
+			} catch (e) {
+				console.error(attempt.name, e.message);
 			}
-			return json({ error: 'All Google Trends sources failed' }, 502);
 		}
-
-		if (pathname === '/summarize') {
-			return handleSummarize(request, env);
-		}
-
-		return new Response('Not found', { status: 404, headers: CORS });
+		return json({ error: 'All Google Trends sources failed' }, 502);
 	}
 };
 
