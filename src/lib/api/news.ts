@@ -61,14 +61,21 @@ function tokenize(text: string): Set<string> {
 	const STOP = new Set([
 		'the', 'a', 'an', 'in', 'on', 'at', 'to', 'for', 'of', 'and', 'or', 'but',
 		'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'be', 'has', 'have',
-		'had', 'will', 'its', 'this', 'that', 'says', 'said', 'over', 'up', 'down'
+		'had', 'will', 'its', 'this', 'that', 'says', 'said', 'over', 'up', 'down',
+		'after', 'amid', 'despite', 'following', 'per', 'cent', 'new', 'latest',
+		'india', 'indian', 'global', 'domestic', 'shares', 'share', 'stock', 'stocks',
+		'market', 'markets', 'trading', 'rise', 'rises', 'fall', 'falls', 'fell',
+		'gain', 'gains', 'loss', 'losses', 'rally', 'crash', 'surge', 'surges',
+		'jump', 'jumps', 'plunge', 'drop', 'drops', 'slip', 'high', 'low',
+		'points', 'percent', 'crore', 'lakh', 'billion', 'million',
+		'company', 'firm', 'group', 'ltd', 'limited', 'data', 'report', 'today'
 	]);
 	return new Set(
 		text
 			.toLowerCase()
 			.replace(/[^\w\s]/g, ' ')
 			.split(/\s+/)
-			.filter((w) => w.length > 2 && !STOP.has(w))
+			.filter((w) => w.length > 2 && !STOP.has(w) && !/^\d+$/.test(w))
 	);
 }
 
@@ -80,6 +87,22 @@ function similarity(a: Set<string>, b: Set<string>): { jaccard: number; shared: 
 	}
 	const unionSize = a.size + b.size - shared;
 	return { jaccard: unionSize === 0 ? 0 : shared / unionSize, shared };
+}
+
+// Known named entities — if two headlines share one, they're about the same story
+const ENTITIES = new Set([
+	'nifty', 'sensex', 'rbi', 'sebi', 'ipo', 'fii', 'dii', 'mpc',
+	'reliance', 'tcs', 'hdfc', 'icici', 'sbi', 'infosys', 'adani',
+	'bajaj', 'wipro', 'hcl', 'maruti', 'ongc', 'ntpc', 'itc', 'kotak',
+	'zomato', 'swiggy', 'paytm', 'nykaa', 'titan', 'axis', 'bpcl', 'bhel'
+]);
+
+function sharedEntities(a: Set<string>, b: Set<string>): number {
+	let count = 0;
+	for (const w of a) {
+		if (ENTITIES.has(w) && b.has(w)) count++;
+	}
+	return count;
 }
 
 function deduplicateAndGroup(items: RawItem[]): NewsCard[] {
@@ -99,7 +122,8 @@ function deduplicateAndGroup(items: RawItem[]): NewsCard[] {
 		let matched = false;
 		for (const group of groups) {
 			const { jaccard, shared } = similarity(group.tokens, tokens);
-			if (jaccard >= 0.2 && shared >= 2) {
+			const entityMatch = sharedEntities(group.tokens, tokens) >= 1;
+			if ((jaccard >= 0.2 && shared >= 2) || (entityMatch && shared >= 1)) {
 				if (!group.sources.has(item.feedId)) {
 					group.sources.set(item.feedId, {
 						feedId: item.feedId,
