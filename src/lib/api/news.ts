@@ -1,5 +1,6 @@
 import { fetchWithProxy } from '$lib/config/api';
 import { INDIAN_NEWS_FEEDS } from '$lib/config/feeds';
+import { isFinanceRelevant, classifyCategory, generateAngle } from '$lib/config/newsCategories';
 import type { NewsCard, NewsSource } from '$lib/types';
 
 interface RawItem {
@@ -129,12 +130,17 @@ function deduplicateAndGroup(items: RawItem[]): NewsCard[] {
 
 	return groups
 		.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
-		.map((g, i) => ({
-			id: `card-${i}-${g.timestamp.getTime()}`,
-			headline: g.headline,
-			sources: Array.from(g.sources.values()),
-			timestamp: g.timestamp
-		}));
+		.map((g, i) => {
+			const category = classifyCategory(g.headline);
+			return {
+				id: `card-${i}-${g.timestamp.getTime()}`,
+				headline: g.headline,
+				sources: Array.from(g.sources.values()),
+				timestamp: g.timestamp,
+				category,
+				angle: generateAngle(g.headline, category)
+			};
+		});
 }
 
 export async function fetchIndianNews(): Promise<NewsCard[]> {
@@ -152,5 +158,6 @@ export async function fetchIndianNews(): Promise<NewsCard[]> {
 		await new Promise((r) => setTimeout(r, 300));
 	}
 
-	return deduplicateAndGroup(allItems);
+	const financeItems = allItems.filter((item) => isFinanceRelevant(item.title));
+	return deduplicateAndGroup(financeItems);
 }

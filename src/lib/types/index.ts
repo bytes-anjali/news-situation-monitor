@@ -27,11 +27,15 @@ export interface NewsSource {
 	color: string;
 }
 
+export type NewsCategory = 'stocks' | 'mutual-funds' | 'personal-finance' | 'other';
+
 export interface NewsCard {
 	id: string;
 	headline: string;
 	sources: NewsSource[];
 	timestamp: Date;
+	category: NewsCategory;
+	angle: string;
 }
 
 export interface MarketsData {

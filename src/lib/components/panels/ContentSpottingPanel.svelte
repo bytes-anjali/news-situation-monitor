@@ -3,6 +3,7 @@
 	import { news } from '$lib/stores';
 	import { INDIAN_NEWS_FEEDS } from '$lib/config/feeds';
 	import type { TrendItem } from '$lib/api/trends';
+	import type { NewsCategory } from '$lib/types';
 
 	interface Props {
 		onRefresh?: () => void;
@@ -10,6 +11,31 @@
 	}
 
 	let { onRefresh, trends = [] }: Props = $props();
+
+	type Tab = 'all' | NewsCategory;
+	let activeTab = $state<Tab>('all');
+
+	const TABS: { id: Tab; label: string }[] = [
+		{ id: 'all', label: 'All' },
+		{ id: 'stocks', label: 'Stocks' },
+		{ id: 'mutual-funds', label: 'Mutual Funds' },
+		{ id: 'personal-finance', label: 'Personal Finance' },
+		{ id: 'other', label: 'Other' },
+	];
+
+	const CATEGORY_COLORS: Record<NewsCategory, string> = {
+		'stocks': '#58a6ff',
+		'mutual-funds': '#3fb950',
+		'personal-finance': '#d29922',
+		'other': '#8b949e',
+	};
+
+	const CATEGORY_LABELS: Record<NewsCategory, string> = {
+		'stocks': 'Stocks',
+		'mutual-funds': 'Mutual Funds',
+		'personal-finance': 'Personal Finance',
+		'other': 'Other',
+	};
 
 	function relativeTime(date: Date): string {
 		const diff = Date.now() - date.getTime();
@@ -38,11 +64,20 @@
 		return null;
 	}
 
-	const sortedCards = $derived.by(() => {
-		const trending = $news.cards.filter((c) => getMatchingTrend(c.headline) !== null);
-		const regular = $news.cards.filter((c) => getMatchingTrend(c.headline) === null);
+	const filteredCards = $derived.by(() => {
+		const cards = activeTab === 'all'
+			? $news.cards
+			: $news.cards.filter((c) => c.category === activeTab);
+
+		const trending = cards.filter((c) => getMatchingTrend(c.headline) !== null);
+		const regular = cards.filter((c) => getMatchingTrend(c.headline) === null);
 		return [...trending, ...regular];
 	});
+
+	function tabCount(id: Tab): number {
+		if (id === 'all') return $news.cards.length;
+		return $news.cards.filter((c) => c.category === id).length;
+	}
 </script>
 
 <Panel
@@ -91,22 +126,42 @@
 		</div>
 	{/if}
 
+	<!-- Category tabs -->
+	<div class="tabs">
+		{#each TABS as tab}
+			<button
+				class="tab"
+				class:active={activeTab === tab.id}
+				onclick={() => activeTab = tab.id}
+			>
+				{tab.label}
+				{#if tabCount(tab.id) > 0}
+					<span class="tab-count">{tabCount(tab.id)}</span>
+				{/if}
+			</button>
+		{/each}
+	</div>
+
 	<div class="cards">
-		{#each sortedCards as card (card.id)}
+		{#each filteredCards as card (card.id)}
 			{@const matchedTrend = getMatchingTrend(card.headline)}
 			<article class="card" class:trending={matchedTrend !== null}>
 				<div class="card-top">
-					{#if matchedTrend !== null}
-						<a
-							href={matchedTrend.shareUrl}
-							target="_blank"
-							rel="noopener noreferrer"
-							class="trend-badge"
-							title="Trending: {matchedTrend.title}"
-						>🔥 Trending</a>
-					{:else}
-						<span></span>
-					{/if}
+					<div class="card-badges">
+						<span
+							class="cat-badge"
+							style="color:{CATEGORY_COLORS[card.category]};border-color:{CATEGORY_COLORS[card.category]}22;background:{CATEGORY_COLORS[card.category]}11"
+						>{CATEGORY_LABELS[card.category]}</span>
+						{#if matchedTrend !== null}
+							<a
+								href={matchedTrend.shareUrl}
+								target="_blank"
+								rel="noopener noreferrer"
+								class="trend-badge"
+								title="Trending: {matchedTrend.title}"
+							>🔥 Trending</a>
+						{/if}
+					</div>
 					<span class="timestamp">{relativeTime(card.timestamp)}</span>
 				</div>
 
@@ -125,11 +180,15 @@
 						</a>
 					{/each}
 				</div>
+
+				<div class="angle">{card.angle}</div>
 			</article>
 		{/each}
 
-		{#if $news.cards.length === 0 && !$news.loading}
-			<div class="empty">Click Refresh News to load stories</div>
+		{#if filteredCards.length === 0 && !$news.loading}
+			<div class="empty">
+				{$news.cards.length === 0 ? 'Click Refresh News to load stories' : 'No stories in this category yet'}
+			</div>
 		{/if}
 	</div>
 </Panel>
@@ -181,17 +240,17 @@
 		color: var(--text-muted);
 	}
 
-	/* Google Trends strip */
+	/* Trends strip */
 	.trends-bar {
 		display: flex;
 		align-items: center;
 		flex-wrap: wrap;
 		gap: 0.35rem;
-		background: rgba(210, 153, 34, 0.08);
-		border: 1px solid rgba(210, 153, 34, 0.2);
+		background: rgba(210, 153, 34, 0.07);
+		border: 1px solid rgba(210, 153, 34, 0.18);
 		border-radius: 5px;
 		padding: 0.4rem 0.6rem;
-		margin-bottom: 0.7rem;
+		margin-bottom: 0.75rem;
 	}
 
 	.trends-label {
@@ -220,18 +279,69 @@
 		text-decoration: none;
 	}
 
-	/* News cards */
+	/* Category tabs */
+	.tabs {
+		display: flex;
+		gap: 0.2rem;
+		margin-bottom: 0.75rem;
+		border-bottom: 1px solid var(--border);
+		padding-bottom: 0.4rem;
+		flex-wrap: wrap;
+	}
+
+	.tab {
+		display: flex;
+		align-items: center;
+		gap: 0.3rem;
+		font-size: 0.62rem;
+		font-family: inherit;
+		font-weight: 500;
+		padding: 0.25rem 0.6rem;
+		border: 1px solid transparent;
+		border-radius: 4px;
+		color: var(--text-muted);
+		background: transparent;
+		cursor: pointer;
+		transition: all 0.15s;
+		white-space: nowrap;
+	}
+
+	.tab:hover {
+		color: var(--text-dim);
+		border-color: var(--border);
+	}
+
+	.tab.active {
+		color: var(--text);
+		background: var(--border);
+		border-color: var(--border-light);
+	}
+
+	.tab-count {
+		font-size: 0.55rem;
+		background: var(--bg);
+		border: 1px solid var(--border);
+		border-radius: 8px;
+		padding: 0 0.3rem;
+		color: var(--text-muted);
+	}
+
+	.tab.active .tab-count {
+		background: var(--surface);
+	}
+
+	/* Cards */
 	.cards {
 		display: flex;
 		flex-direction: column;
-		gap: 0.5rem;
+		gap: 0.55rem;
 	}
 
 	.card {
 		background: var(--bg);
 		border: 1px solid var(--border);
 		border-radius: 5px;
-		padding: 0.7rem 0.85rem;
+		padding: 0.75rem 0.9rem;
 		transition: border-color 0.15s;
 	}
 
@@ -240,19 +350,36 @@
 	}
 
 	.card.trending {
-		border-left: 3px solid rgba(210, 153, 34, 0.6);
+		border-left: 3px solid rgba(210, 153, 34, 0.55);
 	}
 
 	.card-top {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		margin-bottom: 0.35rem;
-		min-height: 1.1rem;
+		margin-bottom: 0.4rem;
+		gap: 0.5rem;
+	}
+
+	.card-badges {
+		display: flex;
+		align-items: center;
+		gap: 0.3rem;
+		flex-wrap: wrap;
+	}
+
+	.cat-badge {
+		font-size: 0.52rem;
+		font-weight: 700;
+		border: 1px solid;
+		border-radius: 3px;
+		padding: 0.1rem 0.4rem;
+		white-space: nowrap;
+		letter-spacing: 0.01em;
 	}
 
 	.trend-badge {
-		font-size: 0.55rem;
+		font-size: 0.52rem;
 		font-weight: 700;
 		color: var(--yellow);
 		background: rgba(210, 153, 34, 0.1);
@@ -276,7 +403,7 @@
 	}
 
 	.headline {
-		font-size: 0.82rem;
+		font-size: 0.84rem;
 		font-weight: 500;
 		color: var(--text);
 		line-height: 1.45;
@@ -287,6 +414,7 @@
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.4rem;
+		margin-bottom: 0.55rem;
 	}
 
 	.source-chip {
@@ -308,6 +436,17 @@
 
 	.dot {
 		font-size: 0.4rem;
+	}
+
+	/* Content angle */
+	.angle {
+		font-size: 0.64rem;
+		color: var(--text-dim);
+		background: var(--surface);
+		border-left: 2px solid var(--border-light);
+		border-radius: 0 3px 3px 0;
+		padding: 0.35rem 0.55rem;
+		line-height: 1.45;
 	}
 
 	.empty {
