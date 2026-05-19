@@ -105,17 +105,15 @@
 	<Header onRefresh={handleRefresh} />
 
 	<main class="main-content">
-		<Dashboard>
-			<div class="panel-slot">
-				<IndianMarketPanel />
-			</div>
-			<div class="panel-slot">
-				<GainersLosersPanel onRefresh={loadGainersLosers} />
-			</div>
-			<div class="panel-slot news-slot">
+		<div class="layout">
+			<div class="left-col">
 				<ContentSpottingPanel onRefresh={loadNews} {trends} />
 			</div>
-		</Dashboard>
+			<div class="right-col">
+				<IndianMarketPanel />
+				<GainersLosersPanel onRefresh={loadGainersLosers} />
+			</div>
+		</div>
 	</main>
 </div>
 
@@ -129,10 +127,44 @@
 
 	.main-content {
 		flex: 1;
+		overflow: hidden;
+	}
+
+	.layout {
+		display: grid;
+		grid-template-columns: 1fr 340px;
+		gap: 0.5rem;
+		height: 100%;
+		padding: 0.5rem;
+		box-sizing: border-box;
+		align-items: start;
+	}
+
+	.left-col {
+		min-width: 0;
+		height: calc(100vh - 3.5rem);
 		overflow-y: auto;
 	}
 
-	.news-slot {
-		column-span: all;
+	.right-col {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		height: calc(100vh - 3.5rem);
+		overflow-y: auto;
+	}
+
+	@media (max-width: 768px) {
+		.layout {
+			grid-template-columns: 1fr;
+		}
+
+		.right-col {
+			height: auto;
+		}
+
+		.left-col {
+			height: auto;
+		}
 	}
 </style>
