@@ -79,14 +79,37 @@ const PF_TERMS = [
 ];
 
 const STOCKS_TERMS = [
+	// Indices & exchanges
 	'nifty', 'sensex', 'bse', 'nse', 'sebi', 'fii', 'dii', 'ipo', 'gmp',
+	// Corporate actions
 	'listing', 'allotment', 'earnings', 'quarterly', 'dividend', 'buyback',
-	'bonus share', 'stock split', 'rally', 'crash', 'circuit', 'futures',
-	'options', 'f&o', 'intraday', 'midcap', 'smallcap', 'demat',
-	'stock market', 'share market', 'equity',
+	'bonus share', 'stock split', 'rights issue', 'demerger',
+	// Results & financials
+	'net profit', 'net loss', 'revenue', 'ebitda', 'pat ', 'q1 ', 'q2 ', 'q3 ', 'q4 ',
+	'results', 'quarterly results',
+	// Market moves
+	'rally', 'crash', 'surge', 'plunge', 'bull run', 'bear', 'sell-off', 'selloff',
+	'upper circuit', 'lower circuit', 'all-time high', 'all time high',
+	'52-week high', '52 week high', '52-week low', '52 week low', 'record high',
+	'circuit breaker', 'meltdown',
+	// Derivatives & trading
+	'circuit', 'futures', 'options', 'f&o', 'intraday', 'expiry',
+	// Segments
+	'midcap', 'smallcap', 'largecap', 'demat', 'shares',
+	// Market types
+	'stock market', 'share market', 'equity market', 'equity', 'capital market',
+	// Corporate events
+	'merger', 'acquisition', 'takeover', 'stake sale', 'open offer',
+	'institutional buying', 'institutional selling',
+	// Large caps
 	'reliance', 'tcs', 'hdfc', 'icici', 'sbi', 'infosys', 'adani',
 	'bajaj', 'wipro', 'hcl', 'maruti', 'ongc', 'ntpc', 'itc',
-	'zomato', 'swiggy', 'paytm', 'nykaa', 'zerodha', 'groww'
+	'zomato', 'swiggy', 'paytm', 'nykaa', 'zerodha', 'groww',
+	'tata motors', 'tata steel', 'sun pharma', 'kotak', 'axis bank',
+	'power grid', 'bhel', 'bpcl', 'upl', 'dmart', 'titan', 'asian paints',
+	// Generic stock coverage
+	'listed', 'investor', 'trade setup', 'technical analysis', 'target price',
+	'buy call', 'sell call', 'stop loss', 'support level', 'resistance level'
 ];
 
 export function classifyCategory(headline: string): NewsCategory {
