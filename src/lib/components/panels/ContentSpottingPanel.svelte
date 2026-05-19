@@ -83,27 +83,29 @@
 		| { s: 'idle' }
 		| { s: 'loading' }
 		| { s: 'done'; title: string; summary: string }
-		| { s: 'error' };
+		| { s: 'error'; msg: string };
 
 	// Keyed by first-source URL (stable across refreshes)
 	let sums = $state<Record<string, SumState>>({});
 
 	$effect(() => {
-		const cards = filteredCards; // reactive dep — re-runs when cards change
-		untrack(() => {
-			for (const card of cards) {
-				const url = card.sources[0]?.url;
-				if (!url || sums[url]) continue;
-				sums[url] = { s: 'loading' };
-				fetchSummary(url)
-					.then((r: ArticleSummary) => {
-						sums[url] = { s: 'done', ...r };
-					})
-					.catch(() => {
-						sums[url] = { s: 'error' };
-					});
-			}
-		});
+		// Read filteredCards reactively so effect re-runs when cards change
+		for (const card of filteredCards) {
+			const url = card.sources[0]?.url;
+			if (!url) continue;
+			// Read existing state without creating dependency on sums itself
+			const existing = untrack(() => sums[url]);
+			if (existing) continue;
+
+			sums[url] = { s: 'loading' };
+			fetchSummary(url)
+				.then((r: ArticleSummary) => {
+					sums[url] = { s: 'done', ...r };
+				})
+				.catch((e: Error) => {
+					sums[url] = { s: 'error', msg: e.message ?? 'Failed' };
+				});
+		}
 	});
 </script>
 
@@ -204,6 +206,8 @@
 					<div class="summary-shimmer"></div>
 				{:else if sum?.s === 'done'}
 					<p class="summary">{sum.summary}</p>
+				{:else if sum?.s === 'error'}
+					<p class="summary-error">⚠ {sum.msg}</p>
 				{/if}
 
 				<div class="card-sources">
@@ -458,6 +462,13 @@
 		color: var(--text-dim);
 		line-height: 1.55;
 		margin: 0 0 0.5rem 0;
+	}
+
+	.summary-error {
+		font-size: 0.62rem;
+		color: var(--red);
+		margin: 0 0 0.5rem 0;
+		opacity: 0.7;
 	}
 
 	.summary-shimmer {

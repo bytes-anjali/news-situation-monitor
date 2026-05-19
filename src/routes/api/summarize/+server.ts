@@ -61,7 +61,11 @@ Article text: ${articleText || '(Could not fetch — use URL context only)'}`
 		})
 	});
 
-	if (!res.ok) throw error(502, `OpenAI error ${res.status}`);
+	if (!res.ok) {
+		const body = await res.text().catch(() => '');
+		console.error('[summarize] OpenAI error', res.status, body.slice(0, 200));
+		throw error(502, `OpenAI error ${res.status}: ${body.slice(0, 100)}`);
+	}
 
 	const data = await res.json();
 	const content: string = data.choices?.[0]?.message?.content ?? '';
