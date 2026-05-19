@@ -85,7 +85,6 @@
 		| { s: 'done'; title: string; summary: string }
 		| { s: 'error'; msg: string };
 
-	// Keyed by first-source URL (stable across refreshes)
 	let sums = $state<Record<string, SumState>>({});
 
 	$effect(() => {
@@ -98,14 +97,44 @@
 
 			sums[url] = { s: 'loading' };
 			fetchSummary(url, card.headline)
-				.then((r: ArticleSummary) => {
-					sums[url] = { s: 'done', ...r };
-				})
-				.catch((e: Error) => {
-					sums[url] = { s: 'error', msg: e.message ?? 'Failed' };
-				});
+				.then((r: ArticleSummary) => { sums[url] = { s: 'done', ...r }; })
+				.catch((e: Error) => { sums[url] = { s: 'error', msg: e.message ?? 'Failed' }; });
 		}
 	});
+
+	// ── Script Generation ────────────────────────────────────────────────────────
+	const API_BASE = import.meta.env.VITE_API_URL ?? '';
+
+	type ScriptState =
+		| { s: 'idle' }
+		| { s: 'loading' }
+		| { s: 'done'; script: string; copied: boolean }
+		| { s: 'error'; msg: string };
+
+	let scripts = $state<Record<string, ScriptState>>({});
+
+	function generateScript(cardId: string, headline: string, summary: string, category: string) {
+		if (!API_BASE) return;
+		scripts[cardId] = { s: 'loading' };
+		const params = new URLSearchParams({ headline, summary, category });
+		fetch(`${API_BASE}/script?${params}`, { signal: AbortSignal.timeout(30000) })
+			.then((r) => {
+				if (!r.ok) throw new Error(`script: ${r.status}`);
+				return r.json();
+			})
+			.then((data) => { scripts[cardId] = { s: 'done', script: data.script, copied: false }; })
+			.catch((e: Error) => { scripts[cardId] = { s: 'error', msg: e.message ?? 'Failed' }; });
+	}
+
+	async function copyScript(cardId: string, text: string) {
+		await navigator.clipboard.writeText(text);
+		const st = scripts[cardId];
+		if (st?.s === 'done') scripts[cardId] = { ...st, copied: true };
+		setTimeout(() => {
+			const cur = scripts[cardId];
+			if (cur?.s === 'done') scripts[cardId] = { ...cur, copied: false };
+		}, 2000);
+	}
 </script>
 
 <Panel
@@ -134,10 +163,7 @@
 		</button>
 		{#if $news.lastUpdated}
 			<span class="news-updated">
-				Updated {new Date($news.lastUpdated).toLocaleTimeString([], {
-					hour: 'numeric',
-					minute: '2-digit'
-				})}
+				Updated {new Date($news.lastUpdated).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
 			</span>
 		{/if}
 	</div>
@@ -146,13 +172,7 @@
 		<div class="trends-bar">
 			<span class="trends-label">🔥 Trending</span>
 			{#each trends as t}
-				<a
-					href={t.shareUrl}
-					target="_blank"
-					rel="noopener noreferrer"
-					class="trend-chip"
-					title="View on Google Trends">{t.title}</a
-				>
+				<a href={t.shareUrl} target="_blank" rel="noopener noreferrer" class="trend-chip" title="View on Google Trends">{t.title}</a>
 			{/each}
 		</div>
 	{/if}
@@ -173,6 +193,7 @@
 			{@const matchedTrend = getMatchingTrend(card.headline)}
 			{@const sumUrl = card.sources[0]?.url}
 			{@const sum = sumUrl ? sums[sumUrl] : null}
+			{@const scr = scripts[card.id]}
 			<article class="card" class:trending={matchedTrend !== null}>
 				<div class="card-top">
 					<div class="card-badges">
@@ -181,26 +202,18 @@
 							style="color:{CAT_COLORS[card.category]};border-color:{CAT_COLORS[card.category]}33;background:{CAT_COLORS[card.category]}11"
 						>{CAT_LABELS[card.category]}</span>
 						{#if matchedTrend !== null}
-							<a
-								href={matchedTrend.shareUrl}
-								target="_blank"
-								rel="noopener noreferrer"
-								class="trend-badge"
-								title="Trending: {matchedTrend.title}"
-							>🔥 Trending</a>
+							<a href={matchedTrend.shareUrl} target="_blank" rel="noopener noreferrer" class="trend-badge" title="Trending: {matchedTrend.title}">🔥 Trending</a>
 						{/if}
 					</div>
 					<span class="timestamp">{relativeTime(card.timestamp)}</span>
 				</div>
 
-				<!-- AI title replaces raw headline when ready -->
 				{#if sum?.s === 'done'}
 					<p class="headline ai-title">{sum.title}</p>
 				{:else}
 					<p class="headline">{card.headline}</p>
 				{/if}
 
-				<!-- AI Summary -->
 				{#if sum?.s === 'loading'}
 					<div class="summary-shimmer"></div>
 				{:else if sum?.s === 'done'}
@@ -211,19 +224,52 @@
 
 				<div class="card-sources">
 					{#each card.sources as src}
-						<a
-							href={src.url}
-							target="_blank"
-							rel="noopener noreferrer"
-							class="source-chip"
-							style="--chip-color:{feedColors[src.feedId] ?? '#888'}"
-						>
+						<a href={src.url} target="_blank" rel="noopener noreferrer" class="source-chip" style="--chip-color:{feedColors[src.feedId] ?? '#888'}">
 							<span class="dot">●</span>{src.name}
 						</a>
 					{/each}
 				</div>
 
+				<!-- Script section -->
+				{#if API_BASE}
+					<div class="script-row">
+						{#if !scr || scr.s === 'idle'}
+							<button
+								class="script-btn"
+								onclick={() => generateScript(
+									card.id,
+									sum?.s === 'done' ? sum.title : card.headline,
+									sum?.s === 'done' ? sum.summary : '',
+									card.category
+								)}
+							>✦ Generate Script</button>
+						{:else if scr.s === 'loading'}
+							<div class="script-generating">Generating script…</div>
+						{:else if scr.s === 'error'}
+							<span class="script-error">⚠ {scr.msg}</span>
+							<button class="script-btn" onclick={() => generateScript(
+								card.id,
+								sum?.s === 'done' ? sum.title : card.headline,
+								sum?.s === 'done' ? sum.summary : '',
+								card.category
+							)}>Retry</button>
+						{/if}
+					</div>
 
+					{#if scr?.s === 'done'}
+						<div class="script-box">
+							<div class="script-header">
+								<span class="script-label">📝 Script — Angel One Bytes</span>
+								<button
+									class="copy-btn"
+									class:copied={scr.copied}
+									onclick={() => copyScript(card.id, scr.script)}
+								>{scr.copied ? '✓ Copied' : 'Copy'}</button>
+							</div>
+							<pre class="script-text">{scr.script}</pre>
+						</div>
+					{/if}
+				{/if}
 			</article>
 		{/each}
 
@@ -245,9 +291,7 @@
 		margin-top: 0.35rem;
 	}
 
-	.feed-dot {
-		font-size: 0.6rem;
-	}
+	.feed-dot { font-size: 0.6rem; }
 
 	.news-toolbar {
 		display: flex;
@@ -269,20 +313,10 @@
 		flex-shrink: 0;
 	}
 
-	.refresh-news-btn:hover:not(:disabled) {
-		background: var(--border);
-		color: var(--text);
-	}
+	.refresh-news-btn:hover:not(:disabled) { background: var(--border); color: var(--text); }
+	.refresh-news-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-	.refresh-news-btn:disabled {
-		opacity: 0.4;
-		cursor: not-allowed;
-	}
-
-	.news-updated {
-		font-size: 0.6rem;
-		color: var(--text-muted);
-	}
+	.news-updated { font-size: 0.6rem; color: var(--text-muted); }
 
 	.trends-bar {
 		display: flex;
@@ -316,11 +350,7 @@
 		transition: border-color 0.15s, color 0.15s;
 	}
 
-	.trend-chip:hover {
-		border-color: var(--yellow);
-		color: var(--yellow);
-		text-decoration: none;
-	}
+	.trend-chip:hover { border-color: var(--yellow); color: var(--yellow); text-decoration: none; }
 
 	.tabs {
 		display: flex;
@@ -348,16 +378,8 @@
 		white-space: nowrap;
 	}
 
-	.tab:hover {
-		color: var(--text-dim);
-		border-color: var(--border);
-	}
-
-	.tab.active {
-		color: var(--text);
-		background: var(--border);
-		border-color: var(--border-light);
-	}
+	.tab:hover { color: var(--text-dim); border-color: var(--border); }
+	.tab.active { color: var(--text); background: var(--border); border-color: var(--border-light); }
 
 	.tab-count {
 		font-size: 0.55rem;
@@ -368,15 +390,9 @@
 		color: var(--text-muted);
 	}
 
-	.tab.active .tab-count {
-		background: var(--surface);
-	}
+	.tab.active .tab-count { background: var(--surface); }
 
-	.cards {
-		display: flex;
-		flex-direction: column;
-		gap: 0.6rem;
-	}
+	.cards { display: flex; flex-direction: column; gap: 0.6rem; }
 
 	.card {
 		background: var(--bg);
@@ -386,13 +402,8 @@
 		transition: border-color 0.15s;
 	}
 
-	.card:hover {
-		border-color: var(--border-light);
-	}
-
-	.card.trending {
-		border-left: 3px solid rgba(210, 153, 34, 0.55);
-	}
+	.card:hover { border-color: var(--border-light); }
+	.card.trending { border-left: 3px solid rgba(210, 153, 34, 0.55); }
 
 	.card-top {
 		display: flex;
@@ -402,12 +413,7 @@
 		gap: 0.5rem;
 	}
 
-	.card-badges {
-		display: flex;
-		align-items: center;
-		gap: 0.3rem;
-		flex-wrap: wrap;
-	}
+	.card-badges { display: flex; align-items: center; gap: 0.3rem; flex-wrap: wrap; }
 
 	.cat-badge {
 		font-size: 0.52rem;
@@ -431,10 +437,7 @@
 		white-space: nowrap;
 	}
 
-	.trend-badge:hover {
-		background: rgba(210, 153, 34, 0.18);
-		text-decoration: none;
-	}
+	.trend-badge:hover { background: rgba(210, 153, 34, 0.18); text-decoration: none; }
 
 	.timestamp {
 		font-size: 0.58rem;
@@ -451,11 +454,8 @@
 		margin: 0 0 0.4rem 0;
 	}
 
-	.ai-title {
-		font-weight: 600;
-	}
+	.ai-title { font-weight: 600; }
 
-	/* AI summary */
 	.summary {
 		font-size: 0.72rem;
 		color: var(--text-dim);
@@ -480,15 +480,15 @@
 	}
 
 	@keyframes shimmer {
-		0% { background-position: -200% 0; }
-		100% { background-position: 200% 0; }
+		0%   { background-position: -200% 0; }
+		100% { background-position:  200% 0; }
 	}
 
 	.card-sources {
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.4rem;
-		margin-bottom: 0.55rem;
+		margin-bottom: 0.5rem;
 	}
 
 	.source-chip {
@@ -503,16 +503,98 @@
 		transition: opacity 0.12s;
 	}
 
-	.source-chip:hover {
-		opacity: 1;
-		text-decoration: underline;
+	.source-chip:hover { opacity: 1; text-decoration: underline; }
+	.dot { font-size: 0.4rem; }
+
+	/* ── Script ── */
+	.script-row {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		margin-top: 0.25rem;
 	}
 
-	.dot {
-		font-size: 0.4rem;
+	.script-btn {
+		font-size: 0.62rem;
+		font-family: inherit;
+		font-weight: 600;
+		padding: 0.3rem 0.75rem;
+		background: transparent;
+		border: 1px solid var(--accent);
+		border-radius: 4px;
+		color: var(--accent);
+		cursor: pointer;
+		transition: all 0.15s;
 	}
 
-.empty {
+	.script-btn:hover {
+		background: var(--accent);
+		color: var(--bg);
+	}
+
+	.script-generating {
+		font-size: 0.6rem;
+		color: var(--text-muted);
+		font-style: italic;
+	}
+
+	.script-error {
+		font-size: 0.6rem;
+		color: var(--red);
+		opacity: 0.8;
+	}
+
+	.script-box {
+		margin-top: 0.65rem;
+		background: var(--surface);
+		border: 1px solid var(--border-light);
+		border-radius: 5px;
+		overflow: hidden;
+	}
+
+	.script-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 0.4rem 0.7rem;
+		border-bottom: 1px solid var(--border);
+	}
+
+	.script-label {
+		font-size: 0.55rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		color: var(--text-muted);
+	}
+
+	.copy-btn {
+		font-size: 0.58rem;
+		font-family: inherit;
+		font-weight: 600;
+		padding: 0.2rem 0.6rem;
+		background: transparent;
+		border: 1px solid var(--border);
+		border-radius: 3px;
+		color: var(--text-dim);
+		cursor: pointer;
+		transition: all 0.15s;
+	}
+
+	.copy-btn:hover { background: var(--border); color: var(--text); }
+	.copy-btn.copied { border-color: var(--green); color: var(--green); }
+
+	.script-text {
+		font-size: 0.78rem;
+		line-height: 1.75;
+		color: var(--text);
+		padding: 0.75rem 0.9rem;
+		margin: 0;
+		white-space: pre-wrap;
+		font-family: inherit;
+	}
+
+	.empty {
 		font-size: 0.7rem;
 		color: var(--text-muted);
 		text-align: center;
