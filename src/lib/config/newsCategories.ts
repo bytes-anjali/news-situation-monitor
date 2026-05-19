@@ -117,7 +117,8 @@ export function classifyCategory(headline: string): NewsCategory {
 	if (MF_TERMS.some((t) => h.includes(t))) return 'mutual-funds';
 	if (PF_TERMS.some((t) => h.includes(t))) return 'personal-finance';
 	if (STOCKS_TERMS.some((t) => h.includes(t))) return 'stocks';
-	return 'other';
+	// Anything that passed the relevance filter is finance news — default to stocks
+	return 'stocks';
 }
 
 // ── Content angle generator ───────────────────────────────────────────────────
