@@ -106,12 +106,12 @@
 
 	<main class="main-content">
 		<div class="layout">
-			<div class="left-col">
-				<ContentSpottingPanel onRefresh={loadNews} {trends} />
-			</div>
-			<div class="right-col">
+			<div class="top-row">
 				<IndianMarketPanel />
 				<GainersLosersPanel onRefresh={loadGainersLosers} />
+			</div>
+			<div class="bottom-row">
+				<ContentSpottingPanel onRefresh={loadNews} {trends} />
 			</div>
 		</div>
 	</main>
@@ -127,44 +127,31 @@
 
 	.main-content {
 		flex: 1;
-		overflow: hidden;
+		overflow-y: auto;
 	}
 
 	.layout {
-		display: grid;
-		grid-template-columns: 1fr 340px;
-		gap: 0.5rem;
-		height: 100%;
-		padding: 0.5rem;
-		box-sizing: border-box;
-		align-items: start;
-	}
-
-	.left-col {
-		min-width: 0;
-		height: calc(100vh - 3.5rem);
-		overflow-y: auto;
-	}
-
-	.right-col {
 		display: flex;
 		flex-direction: column;
 		gap: 0.5rem;
-		height: calc(100vh - 3.5rem);
-		overflow-y: auto;
+		padding: 0.5rem;
+		box-sizing: border-box;
+	}
+
+	.top-row {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 0.5rem;
+		align-items: start;
+	}
+
+	.bottom-row {
+		min-width: 0;
 	}
 
 	@media (max-width: 768px) {
-		.layout {
+		.top-row {
 			grid-template-columns: 1fr;
-		}
-
-		.right-col {
-			height: auto;
-		}
-
-		.left-col {
-			height: auto;
 		}
 	}
 </style>
