@@ -97,7 +97,7 @@
 			if (existing) continue;
 
 			sums[url] = { s: 'loading' };
-			fetchSummary(url)
+			fetchSummary(url, card.headline)
 				.then((r: ArticleSummary) => {
 					sums[url] = { s: 'done', ...r };
 				})

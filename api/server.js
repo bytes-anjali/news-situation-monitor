@@ -26,6 +26,7 @@ app.use((req, res, next) => {
 
 app.get('/summarize', async (req, res) => {
 	const articleUrl = req.query.url;
+	const headline = (req.query.headline ?? '').slice(0, 300);
 	if (!articleUrl) return res.status(400).json({ error: 'url param required' });
 	if (!OPENAI_API_KEY) return res.status(500).json({ error: 'OPENAI_API_KEY not configured' });
 
@@ -36,9 +37,13 @@ app.get('/summarize', async (req, res) => {
 			signal: AbortSignal.timeout(8000)
 		});
 		if (r.ok) articleText = stripHtml(await r.text()).slice(0, 4000);
-	} catch { /* proceed with empty */ }
+	} catch { /* proceed with headline only */ }
 
 	try {
+		const context = articleText
+			? `Headline: ${headline}\nArticle text: ${articleText}`
+			: `Headline: ${headline}\n(Full article text unavailable — summarise based on the headline.)`;
+
 		const r = await fetch('https://api.openai.com/v1/chat/completions', {
 			method: 'POST',
 			headers: { Authorization: `Bearer ${OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
@@ -53,7 +58,7 @@ app.get('/summarize', async (req, res) => {
 					},
 					{
 						role: 'user',
-						content: `Summarize as JSON: {"title":"Clean factual headline (8-12 words)","summary":"2-3 sentences: what happened + key numbers + impact for Indian retail investors"}\n\nURL: ${articleUrl}\nText: ${articleText || '(unavailable)'}`
+						content: `Summarize as JSON: {"title":"Clean factual headline (8-12 words)","summary":"2-3 sentences: what happened + key numbers + impact for Indian retail investors"}\n\n${context}`
 					}
 				]
 			})
