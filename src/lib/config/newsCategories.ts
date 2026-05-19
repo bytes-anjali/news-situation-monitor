@@ -1,66 +1,99 @@
 export type NewsCategory = 'stocks' | 'mutual-funds' | 'personal-finance' | 'other';
 
-// ── Relevance scoring ─────────────────────────────────────────────────────────
-// Each rule adds to the article's score. Higher score = more relevant for
-// AngelOne's audience (investing, IPO, RBI, mutual funds, personal finance).
-// Articles are ranked by score; only the top MAX_CARDS pass through.
-
 export const MAX_CARDS = 28;
 export const MIN_SCORE = 4;
 
-const RULES: Array<{ re: RegExp; pts: number }> = [
-	// Critical — always show (15 pts)
-	{ re: /\bnifty\b|\bsensex\b|\bbank nifty\b|\bnifty 50\b/, pts: 15 },
-	{ re: /\bipo\b|\bgmp\b|grey market premium|oversubscribed|listing gain/, pts: 15 },
-	{ re: /\brbi\b|repo rate|monetary policy|mpc meeting/, pts: 15 },
-	{ re: /union budget|interim budget|finance minister nirmala/, pts: 15 },
+// ── Relevance scoring ─────────────────────────────────────────────────────────
+// Uses simple includes() so "Nifty50", "Nifty 50", "nifty" all match.
+// Articles scored; top MAX_CARDS with score >= MIN_SCORE are shown.
 
-	// High value (10–12 pts)
-	{ re: /\bsebi\b/, pts: 12 },
-	{ re: /\b(reliance|tcs|hdfc bank|icici bank|sbi|infosys|adani|bajaj finance|maruti|wipro|hcl tech|ongc|ntpc|itc)\b/i, pts: 12 },
-	{ re: /quarterly results?|q[1-4] results?|\bearnings\b|net profit|revenue miss|revenue beat/, pts: 10 },
-	{ re: /\bdividend\b|bonus share|stock split|buyback|rights issue/, pts: 10 },
-	{ re: /\bfii\b|\bdii\b|foreign institutional|institutional (buyin|selling|flows)/, pts: 10 },
-	{ re: /merger|acquisition|takeover|demerger|stake sale/, pts: 10 },
+const SCORE_RULES: Array<{ terms: string[]; pts: number }> = [
+	// Critical — 15 pts
+	{ terms: ['nifty', 'sensex', 'bank nifty'], pts: 15 },
+	{ terms: ['ipo', 'gmp', 'grey market', 'oversubscribed', 'listing gain', 'listing price'], pts: 15 },
+	{ terms: ['rbi', 'repo rate', 'monetary policy', 'mpc'], pts: 15 },
+	{ terms: ['union budget', 'interim budget', 'finance minister'], pts: 15 },
 
-	// Important (7–9 pts)
-	{ re: /all.time high|52.week high|record high|lifetime high/, pts: 9 },
-	{ re: /\bcrash\b|\bplunge\b|market crash|sharp (fall|decline)|sell.?off/, pts: 8 },
-	{ re: /\brally\b|market rally|strong gains|bull run/, pts: 7 },
-	{ re: /f&o expiry|futures expiry|options expiry|rollover/, pts: 7 },
-	{ re: /upper circuit|lower circuit|\bcircuit\b/, pts: 7 },
+	// High value — 12 pts
+	{ terms: ['sebi'], pts: 12 },
+	{ terms: [
+		'reliance', 'tcs', 'hdfc bank', 'icici bank', 'infosys', 'adani',
+		'bajaj finance', 'maruti', 'wipro', 'hcl tech', 'ongc', 'ntpc',
+		'state bank', 'sbi '
+	], pts: 12 },
 
-	// Mutual funds (7 pts)
-	{ re: /mutual fund|\bsip\b|\belss\b|\bamfi\b|\bamc\b|fund house/, pts: 7 },
+	// Important — 10 pts
+	{ terms: ['quarterly results', 'q1 results', 'q2 results', 'q3 results', 'q4 results',
+	           'net profit', 'revenue miss', 'revenue beat', 'earnings', 'pat '], pts: 10 },
+	{ terms: ['dividend', 'bonus share', 'stock split', 'buyback', 'rights issue'], pts: 10 },
+	{ terms: ['fii', 'dii', 'foreign institutional', 'institutional buying', 'institutional selling'], pts: 10 },
+	{ terms: ['merger', 'acquisition', 'takeover', 'demerger', 'stake sale'], pts: 10 },
 
-	// Personal finance (5–7 pts)
-	{ re: /income tax|\bitr\b|tax saving|80c |capital gains? tax|tax deduction/, pts: 7 },
-	{ re: /\binflation\b|\bcpi\b|\bwpi\b|\bgdp\b|economic growth/, pts: 6 },
-	{ re: /gold price|silver price|crude oil price/, pts: 6 },
-	{ re: /home loan|\bemi\b|interest rate|fixed deposit|\bfd\b/, pts: 6 },
-	{ re: /\binsurance\b|\bepf\b|\bppf\b|\bnps\b|\bpension\b/, pts: 5 },
+	// Notable — 8 pts
+	{ terms: ['all-time high', 'all time high', '52-week high', '52 week high', 'record high', 'lifetime high'], pts: 8 },
+	{ terms: ['crash', 'market crash', 'sharp fall', 'sharp decline', 'sell-off', 'selloff', 'meltdown'], pts: 8 },
+	{ terms: ['rally', 'market rally', 'bull run', 'surge', 'strong gains'], pts: 7 },
+	{ terms: ['f&o expiry', 'futures expiry', 'options expiry', 'fo expiry'], pts: 7 },
+	{ terms: ['upper circuit', 'lower circuit'], pts: 7 },
 
-	// Market context (4 pts)
-	{ re: /\bmidcap\b|\bsmallcap\b|small.?cap|mid.?cap/, pts: 4 },
-	{ re: /\brupee\b|\binr\b|dollar.rupee|usd.inr/, pts: 4 },
+	// Mutual funds — 7 pts
+	{ terms: ['mutual fund', 'sip', 'elss', 'amfi', 'amc', 'fund house', 'nav '], pts: 7 },
+
+	// Personal finance — 5–7 pts
+	{ terms: ['income tax', 'itr', 'tax saving', '80c', 'capital gains tax', 'capital gain'], pts: 7 },
+	{ terms: ['inflation', 'cpi data', 'wpi data', 'gdp growth', 'economic growth'], pts: 6 },
+	{ terms: ['gold price', 'silver price', 'crude oil', 'commodity'], pts: 6 },
+	{ terms: ['home loan', 'emi', 'interest rate', 'fixed deposit', 'fd rate'], pts: 6 },
+	{ terms: ['insurance', 'epf', 'ppf', 'nps', 'pension fund'], pts: 5 },
+
+	// Market context — 4 pts
+	{ terms: ['midcap', 'mid cap', 'smallcap', 'small cap'], pts: 4 },
+	{ terms: ['rupee', 'dollar', 'usd inr', 'forex'], pts: 4 },
+	{ terms: ['stock market', 'share market', 'equity market', 'stock exchange'], pts: 4 },
 ];
 
 export function scoreRelevance(headline: string): number {
-	const h = ` ${headline.toLowerCase()} `;
-	return RULES.reduce((total, rule) => (rule.re.test(h) ? total + rule.pts : total), 0);
+	const h = headline.toLowerCase();
+	let score = 0;
+	for (const rule of SCORE_RULES) {
+		if (rule.terms.some((t) => h.includes(t))) score += rule.pts;
+	}
+	return score;
 }
 
 // ── Category classification ───────────────────────────────────────────────────
 
-const MF_RE = /mutual fund|\bsip\b|\bnav\b|\belss\b|\bamc\b|\bamfi\b|liquid fund|debt fund|hybrid fund|flexi cap|exit load|expense ratio/;
-const PF_RE = /\bppf\b|\bepf\b|\bnps\b|provident fund|fixed deposit|\bfd\b|income tax|\bitr\b|tax saving|80c|80d|gst|home loan|credit card|\bemi\b|retirement|pension|life insurance|health insurance|term plan|savings account|inflation|repo rate|gold price|silver price|forex|\brupee\b/;
-const STOCKS_RE = /\bnifty\b|\bsensex\b|\bbse\b|\bnse\b|\bsebi\b|\bfii\b|\bdii\b|\bipo\b|gmp|listing|allotment|earnings|quarterly results?|dividend|buyback|bonus share|stock split|bull|bear|rally|crash|circuit|futures|options|f&o|intraday|midcap|smallcap|demat|zerodha|groww|upstox|angelone|stock market|share market|equity market|market cap|reliance|tcs|hdfc|icici|sbi|infosys|adani|bajaj|wipro|hcl|maruti|ongc|ntpc|itc|zomato|swiggy|paytm|nykaa/;
+const MF_TERMS = [
+	'mutual fund', 'sip', ' nav ', 'elss', 'amc', 'amfi', 'fund house',
+	'liquid fund', 'debt fund', 'hybrid fund', 'flexi cap', 'multi cap',
+	'exit load', 'expense ratio', 'direct plan', 'regular plan', 'folio'
+];
+
+const PF_TERMS = [
+	'ppf', 'epf', 'nps', 'provident fund', 'fixed deposit', ' fd ',
+	'income tax', 'itr', 'tax saving', '80c', '80d', 'capital gain',
+	'gst', 'home loan', 'credit card', ' emi ', 'personal loan',
+	'retirement', 'pension', 'life insurance', 'health insurance', 'term plan',
+	'savings account', 'inflation', 'repo rate', 'gold price', 'silver price',
+	'rupee', 'forex', 'rbi policy'
+];
+
+const STOCKS_TERMS = [
+	'nifty', 'sensex', 'bse', 'nse', 'sebi', 'fii', 'dii', 'ipo', 'gmp',
+	'listing', 'allotment', 'earnings', 'quarterly', 'dividend', 'buyback',
+	'bonus share', 'stock split', 'rally', 'crash', 'circuit', 'futures',
+	'options', 'f&o', 'intraday', 'midcap', 'smallcap', 'demat',
+	'stock market', 'share market', 'equity',
+	'reliance', 'tcs', 'hdfc', 'icici', 'sbi', 'infosys', 'adani',
+	'bajaj', 'wipro', 'hcl', 'maruti', 'ongc', 'ntpc', 'itc',
+	'zomato', 'swiggy', 'paytm', 'nykaa', 'zerodha', 'groww'
+];
 
 export function classifyCategory(headline: string): NewsCategory {
 	const h = ` ${headline.toLowerCase()} `;
-	if (MF_RE.test(h)) return 'mutual-funds';
-	if (PF_RE.test(h)) return 'personal-finance';
-	if (STOCKS_RE.test(h)) return 'stocks';
+	if (MF_TERMS.some((t) => h.includes(t))) return 'mutual-funds';
+	if (PF_TERMS.some((t) => h.includes(t))) return 'personal-finance';
+	if (STOCKS_TERMS.some((t) => h.includes(t))) return 'stocks';
 	return 'other';
 }
 
@@ -69,23 +102,23 @@ export function classifyCategory(headline: string): NewsCategory {
 export function generateAngle(headline: string, category: NewsCategory): string {
 	const h = headline.toLowerCase();
 
-	const isUp = /\b(rise|rises|rising|gain|gains|surge|surges|rally|rallies|jump|jumps|soar|soars|high|record|breakout)\b/.test(h);
-	const isDown = /\b(fall|falls|drop|drops|crash|crashes|plunge|plunges|decline|declines|slip|slips|low|sell.?off|correction|meltdown)\b/.test(h);
-	const isIPO = /\bipo\b/.test(h);
-	const isResults = /\b(results|earnings|quarterly|q[1-4] |net profit|revenue)\b/.test(h);
-	const isDividend = /\bdividend\b/.test(h);
-	const isSEBI = /\bsebi\b/.test(h);
-	const isFII = /\b(fii|dii|institutional|foreign investor)\b/.test(h);
-	const isRBI = /\brbi\b/.test(h);
-	const isTax = /\b(tax|itr|80c|gst|income tax|capital gain)\b/.test(h);
-	const isInflation = /\b(inflation|cpi|wpi|repo rate|interest rate)\b/.test(h);
-	const isInsurance = /\binsurance\b/.test(h);
-	const isGold = /\b(gold|silver)\b/.test(h);
-	const isSIP = /\bsip\b/.test(h);
+	const isIPO = h.includes('ipo') || h.includes('gmp') || h.includes('allotment');
+	const isResults = h.includes('results') || h.includes('earnings') || h.includes('net profit') || h.includes('quarterly');
+	const isDividend = h.includes('dividend');
+	const isSEBI = h.includes('sebi');
+	const isFII = h.includes('fii') || h.includes('dii') || h.includes('institutional');
+	const isUp = /rise|gain|surge|rally|jump|soar|high|record|breakout/.test(h);
+	const isDown = /fall|drop|crash|plunge|decline|slip|sell.?off|correction|meltdown/.test(h);
+	const isRBI = h.includes('rbi') || h.includes('repo rate') || h.includes('monetary policy');
+	const isTax = h.includes('tax') || h.includes('itr') || h.includes('80c') || h.includes('capital gain');
+	const isInflation = h.includes('inflation') || h.includes('cpi') || h.includes('repo rate');
+	const isInsurance = h.includes('insurance');
+	const isGold = h.includes('gold') || h.includes('silver');
+	const isSIP = h.includes('sip');
 
 	if (category === 'stocks') {
 		if (isIPO) return '📹 "Should you apply?" — Cover GMP, subscription status & company fundamentals in 5 mins.';
-		if (isResults) return '📹 "Earnings decoded" — Break down what the numbers mean: should viewers hold, add, or exit?';
+		if (isResults) return '📹 "Earnings decoded" — Break down the numbers: should viewers hold, add, or exit?';
 		if (isDividend) return '📹 "Free money or trap?" — Explain dividend vs growth stocks for beginners.';
 		if (isSEBI) return '📹 "SEBI just changed the rules" — Explain the move & what retail investors must do now.';
 		if (isFII) return '📹 "Smart money is moving" — Decode why institutions bought/sold and what retail should follow.';
