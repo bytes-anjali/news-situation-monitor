@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Header, Dashboard } from '$lib/components/layout';
-	import { IndianMarketPanel, GainersLosersPanel, ContentSpottingPanel } from '$lib/components/panels';
+	import { Header } from '$lib/components/layout';
+	import { MarketBar, ContentSpottingPanel } from '$lib/components/panels';
 	import { markets, news, refresh } from '$lib/stores';
 	import { fetchMarkets, fetchGainersLosers, fetchIndianNews, fetchBusinessTrends, type TrendItem } from '$lib/api';
 	import { getNewsRefreshInterval } from '$lib/utils/marketHours';
@@ -43,7 +43,7 @@
 	async function loadTrends() {
 		try {
 			trends = await fetchBusinessTrends();
-		} catch { /* silent — trends are optional */ }
+		} catch { /* silent */ }
 	}
 
 	async function handleRefresh() {
@@ -51,6 +51,7 @@
 		const safetyTimer = setTimeout(() => refresh.endRefresh(['Refresh timed out']), 45000);
 		try {
 			await loadMarkets();
+			await loadGainersLosers();
 			refresh.nextStage();
 			await Promise.all([loadNews(), loadTrends()]);
 			refresh.endRefresh();
@@ -106,13 +107,8 @@
 
 	<main class="main-content">
 		<div class="layout">
-			<div class="top-row">
-				<IndianMarketPanel />
-				<GainersLosersPanel onRefresh={loadGainersLosers} />
-			</div>
-			<div class="bottom-row">
-				<ContentSpottingPanel onRefresh={loadNews} {trends} />
-			</div>
+			<MarketBar onRefreshGainers={loadGainersLosers} />
+			<ContentSpottingPanel onRefresh={loadNews} {trends} />
 		</div>
 	</main>
 </div>
@@ -133,25 +129,7 @@
 	.layout {
 		display: flex;
 		flex-direction: column;
-		gap: 0.5rem;
 		padding: 0.5rem;
 		box-sizing: border-box;
-	}
-
-	.top-row {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: 0.5rem;
-		align-items: start;
-	}
-
-	.bottom-row {
-		min-width: 0;
-	}
-
-	@media (max-width: 768px) {
-		.top-row {
-			grid-template-columns: 1fr;
-		}
 	}
 </style>

@@ -223,7 +223,7 @@
 					{/each}
 				</div>
 
-				<div class="angle">{card.angle}</div>
+
 			</article>
 		{/each}
 
@@ -512,17 +512,7 @@
 		font-size: 0.4rem;
 	}
 
-	.angle {
-		font-size: 0.64rem;
-		color: var(--text-dim);
-		background: var(--surface);
-		border-left: 2px solid var(--border-light);
-		border-radius: 0 3px 3px 0;
-		padding: 0.35rem 0.55rem;
-		line-height: 1.45;
-	}
-
-	.empty {
+.empty {
 		font-size: 0.7rem;
 		color: var(--text-muted);
 		text-align: center;
