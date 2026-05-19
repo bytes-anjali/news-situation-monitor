@@ -3,7 +3,7 @@
 	import Panel from '$lib/components/common/Panel.svelte';
 	import { news } from '$lib/stores';
 	import { INDIAN_NEWS_FEEDS } from '$lib/config/feeds';
-	import { fetchSummary, type ArticleSummary } from '$lib/api/summarize';
+	import { fetchSummary, isSummaryEnabled, type ArticleSummary } from '$lib/api/summarize';
 	import type { TrendItem } from '$lib/api/trends';
 	import type { NewsCategory } from '$lib/types';
 
@@ -89,11 +89,10 @@
 	let sums = $state<Record<string, SumState>>({});
 
 	$effect(() => {
-		// Read filteredCards reactively so effect re-runs when cards change
+		if (!isSummaryEnabled()) return;
 		for (const card of filteredCards) {
 			const url = card.sources[0]?.url;
 			if (!url) continue;
-			// Read existing state without creating dependency on sums itself
 			const existing = untrack(() => sums[url]);
 			if (existing) continue;
 

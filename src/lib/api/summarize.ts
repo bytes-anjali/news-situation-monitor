@@ -10,8 +10,11 @@ const API_BASE = import.meta.env.VITE_API_URL ?? '';
 // Promise cache keyed by URL — dedupes concurrent requests for the same article
 const cache = new Map<string, Promise<ArticleSummary>>();
 
+export function isSummaryEnabled(): boolean {
+	return !!API_BASE;
+}
+
 export function fetchSummary(articleUrl: string): Promise<ArticleSummary> {
-	if (!API_BASE) return Promise.reject(new Error('API not configured'));
 	if (cache.has(articleUrl)) return cache.get(articleUrl)!;
 
 	const promise = (async (): Promise<ArticleSummary> => {
