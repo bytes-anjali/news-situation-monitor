@@ -1,7 +1,9 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import Panel from '$lib/components/common/Panel.svelte';
 	import { news } from '$lib/stores';
 	import { INDIAN_NEWS_FEEDS } from '$lib/config/feeds';
+	import { fetchSummary, type ArticleSummary } from '$lib/api/summarize';
 	import type { TrendItem } from '$lib/api/trends';
 	import type { NewsCategory } from '$lib/types';
 
@@ -20,21 +22,21 @@
 		{ id: 'stocks', label: 'Stocks' },
 		{ id: 'mutual-funds', label: 'Mutual Funds' },
 		{ id: 'personal-finance', label: 'Personal Finance' },
-		{ id: 'other', label: 'Other' },
+		{ id: 'other', label: 'Other' }
 	];
 
-	const CATEGORY_COLORS: Record<NewsCategory, string> = {
-		'stocks': '#58a6ff',
+	const CAT_COLORS: Record<NewsCategory, string> = {
+		stocks: '#58a6ff',
 		'mutual-funds': '#3fb950',
 		'personal-finance': '#d29922',
-		'other': '#8b949e',
+		other: '#8b949e'
 	};
 
-	const CATEGORY_LABELS: Record<NewsCategory, string> = {
-		'stocks': 'Stocks',
+	const CAT_LABELS: Record<NewsCategory, string> = {
+		stocks: 'Stocks',
 		'mutual-funds': 'Mutual Funds',
 		'personal-finance': 'Personal Finance',
-		'other': 'Other',
+		other: 'Other'
 	};
 
 	function relativeTime(date: Date): string {
@@ -44,8 +46,7 @@
 		if (mins < 60) return `${mins}m ago`;
 		const hrs = Math.floor(mins / 60);
 		if (hrs < 24) return `${hrs}h ago`;
-		const days = Math.floor(hrs / 24);
-		return `${days}d ago`;
+		return `${Math.floor(hrs / 24)}d ago`;
 	}
 
 	const feedColors = Object.fromEntries(INDIAN_NEWS_FEEDS.map((f) => [f.id, f.color]));
@@ -65,10 +66,8 @@
 	}
 
 	const filteredCards = $derived.by(() => {
-		const cards = activeTab === 'all'
-			? $news.cards
-			: $news.cards.filter((c) => c.category === activeTab);
-
+		const cards =
+			activeTab === 'all' ? $news.cards : $news.cards.filter((c) => c.category === activeTab);
 		const trending = cards.filter((c) => getMatchingTrend(c.headline) !== null);
 		const regular = cards.filter((c) => getMatchingTrend(c.headline) === null);
 		return [...trending, ...regular];
@@ -78,6 +77,34 @@
 		if (id === 'all') return $news.cards.length;
 		return $news.cards.filter((c) => c.category === id).length;
 	}
+
+	// ── AI Summaries ────────────────────────────────────────────────────────────
+	type SumState =
+		| { s: 'idle' }
+		| { s: 'loading' }
+		| { s: 'done'; title: string; summary: string }
+		| { s: 'error' };
+
+	// Keyed by first-source URL (stable across refreshes)
+	let sums = $state<Record<string, SumState>>({});
+
+	$effect(() => {
+		const cards = filteredCards; // reactive dep — re-runs when cards change
+		untrack(() => {
+			for (const card of cards) {
+				const url = card.sources[0]?.url;
+				if (!url || sums[url]) continue;
+				sums[url] = { s: 'loading' };
+				fetchSummary(url)
+					.then((r: ArticleSummary) => {
+						sums[url] = { s: 'done', ...r };
+					})
+					.catch(() => {
+						sums[url] = { s: 'error' };
+					});
+			}
+		});
+	});
 </script>
 
 <Panel
@@ -106,7 +133,10 @@
 		</button>
 		{#if $news.lastUpdated}
 			<span class="news-updated">
-				Updated {new Date($news.lastUpdated).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+				Updated {new Date($news.lastUpdated).toLocaleTimeString([], {
+					hour: 'numeric',
+					minute: '2-digit'
+				})}
 			</span>
 		{/if}
 	</div>
@@ -120,20 +150,15 @@
 					target="_blank"
 					rel="noopener noreferrer"
 					class="trend-chip"
-					title="View on Google Trends"
-				>{t.title}</a>
+					title="View on Google Trends">{t.title}</a
+				>
 			{/each}
 		</div>
 	{/if}
 
-	<!-- Category tabs -->
 	<div class="tabs">
 		{#each TABS as tab}
-			<button
-				class="tab"
-				class:active={activeTab === tab.id}
-				onclick={() => activeTab = tab.id}
-			>
+			<button class="tab" class:active={activeTab === tab.id} onclick={() => (activeTab = tab.id)}>
 				{tab.label}
 				{#if tabCount(tab.id) > 0}
 					<span class="tab-count">{tabCount(tab.id)}</span>
@@ -145,13 +170,15 @@
 	<div class="cards">
 		{#each filteredCards as card (card.id)}
 			{@const matchedTrend = getMatchingTrend(card.headline)}
+			{@const sumUrl = card.sources[0]?.url}
+			{@const sum = sumUrl ? sums[sumUrl] : null}
 			<article class="card" class:trending={matchedTrend !== null}>
 				<div class="card-top">
 					<div class="card-badges">
 						<span
 							class="cat-badge"
-							style="color:{CATEGORY_COLORS[card.category]};border-color:{CATEGORY_COLORS[card.category]}22;background:{CATEGORY_COLORS[card.category]}11"
-						>{CATEGORY_LABELS[card.category]}</span>
+							style="color:{CAT_COLORS[card.category]};border-color:{CAT_COLORS[card.category]}33;background:{CAT_COLORS[card.category]}11"
+						>{CAT_LABELS[card.category]}</span>
 						{#if matchedTrend !== null}
 							<a
 								href={matchedTrend.shareUrl}
@@ -165,7 +192,19 @@
 					<span class="timestamp">{relativeTime(card.timestamp)}</span>
 				</div>
 
-				<p class="headline">{card.headline}</p>
+				<!-- AI title replaces raw headline when ready -->
+				{#if sum?.s === 'done'}
+					<p class="headline ai-title">{sum.title}</p>
+				{:else}
+					<p class="headline">{card.headline}</p>
+				{/if}
+
+				<!-- AI Summary -->
+				{#if sum?.s === 'loading'}
+					<div class="summary-shimmer"></div>
+				{:else if sum?.s === 'done'}
+					<p class="summary">{sum.summary}</p>
+				{/if}
 
 				<div class="card-sources">
 					{#each card.sources as src}
@@ -187,7 +226,9 @@
 
 		{#if filteredCards.length === 0 && !$news.loading}
 			<div class="empty">
-				{$news.cards.length === 0 ? 'Click Refresh News to load stories' : 'No stories in this category yet'}
+				{$news.cards.length === 0
+					? 'Click Refresh News to load stories'
+					: 'No stories in this category yet'}
 			</div>
 		{/if}
 	</div>
@@ -240,7 +281,6 @@
 		color: var(--text-muted);
 	}
 
-	/* Trends strip */
 	.trends-bar {
 		display: flex;
 		align-items: center;
@@ -279,7 +319,6 @@
 		text-decoration: none;
 	}
 
-	/* Category tabs */
 	.tabs {
 		display: flex;
 		gap: 0.2rem;
@@ -330,11 +369,10 @@
 		background: var(--surface);
 	}
 
-	/* Cards */
 	.cards {
 		display: flex;
 		flex-direction: column;
-		gap: 0.55rem;
+		gap: 0.6rem;
 	}
 
 	.card {
@@ -357,7 +395,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		margin-bottom: 0.4rem;
+		margin-bottom: 0.45rem;
 		gap: 0.5rem;
 	}
 
@@ -407,7 +445,33 @@
 		font-weight: 500;
 		color: var(--text);
 		line-height: 1.45;
-		margin: 0 0 0.45rem 0;
+		margin: 0 0 0.4rem 0;
+	}
+
+	.ai-title {
+		font-weight: 600;
+	}
+
+	/* AI summary */
+	.summary {
+		font-size: 0.72rem;
+		color: var(--text-dim);
+		line-height: 1.55;
+		margin: 0 0 0.5rem 0;
+	}
+
+	.summary-shimmer {
+		height: 2.4rem;
+		border-radius: 3px;
+		margin-bottom: 0.5rem;
+		background: linear-gradient(90deg, var(--surface) 25%, var(--border) 50%, var(--surface) 75%);
+		background-size: 200% 100%;
+		animation: shimmer 1.4s infinite;
+	}
+
+	@keyframes shimmer {
+		0% { background-position: -200% 0; }
+		100% { background-position: 200% 0; }
 	}
 
 	.card-sources {
@@ -438,7 +502,6 @@
 		font-size: 0.4rem;
 	}
 
-	/* Content angle */
 	.angle {
 		font-size: 0.64rem;
 		color: var(--text-dim);

@@ -1,6 +1,6 @@
 import { fetchWithProxy } from '$lib/config/api';
 import { INDIAN_NEWS_FEEDS } from '$lib/config/feeds';
-import { isFinanceRelevant, classifyCategory, generateAngle } from '$lib/config/newsCategories';
+import { scoreRelevance, classifyCategory, generateAngle, MAX_CARDS, MIN_SCORE } from '$lib/config/newsCategories';
 import type { NewsCard, NewsSource } from '$lib/types';
 
 interface RawItem {
@@ -128,17 +128,26 @@ function deduplicateAndGroup(items: RawItem[]): NewsCard[] {
 		}
 	}
 
-	return groups
-		.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
-		.map((g, i) => {
-			const category = classifyCategory(g.headline);
+	// Score every group; source count bonus rewards stories multiple outlets covered
+	const scored = groups.map((g) => {
+		const sources = Array.from(g.sources.values());
+		const sourceBonus = Math.min(sources.length - 1, 4) * 2;
+		return { g, sources, score: scoreRelevance(g.headline) + sourceBonus };
+	});
+
+	return scored
+		.filter((x) => x.score >= MIN_SCORE)
+		.sort((a, b) => b.score - a.score || b.g.timestamp.getTime() - a.g.timestamp.getTime())
+		.slice(0, MAX_CARDS)
+		.map((x, i) => {
+			const category = classifyCategory(x.g.headline);
 			return {
-				id: `card-${i}-${g.timestamp.getTime()}`,
-				headline: g.headline,
-				sources: Array.from(g.sources.values()),
-				timestamp: g.timestamp,
+				id: `card-${i}-${x.g.timestamp.getTime()}`,
+				headline: x.g.headline,
+				sources: x.sources,
+				timestamp: x.g.timestamp,
 				category,
-				angle: generateAngle(g.headline, category)
+				angle: generateAngle(x.g.headline, category)
 			};
 		});
 }
@@ -158,6 +167,5 @@ export async function fetchIndianNews(): Promise<NewsCard[]> {
 		await new Promise((r) => setTimeout(r, 300));
 	}
 
-	const financeItems = allItems.filter((item) => isFinanceRelevant(item.title));
-	return deduplicateAndGroup(financeItems);
+	return deduplicateAndGroup(allItems);
 }
