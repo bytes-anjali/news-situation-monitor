@@ -113,10 +113,10 @@
 
 	let scripts = $state<Record<string, ScriptState>>({});
 
-	function generateScript(cardId: string, headline: string, summary: string, category: string) {
+	function generateScript(cardId: string, headline: string, summary: string, category: string, sourceUrls: string[]) {
 		if (!API_BASE) return;
 		scripts[cardId] = { s: 'loading' };
-		const params = new URLSearchParams({ headline, summary, category });
+		const params = new URLSearchParams({ headline, summary, category, urls: sourceUrls.join(',') });
 		fetch(`${API_BASE}/script?${params}`, { signal: AbortSignal.timeout(30000) })
 			.then((r) => {
 				if (!r.ok) throw new Error(`script: ${r.status}`);
@@ -240,7 +240,8 @@
 									card.id,
 									sum?.s === 'done' ? sum.title : card.headline,
 									sum?.s === 'done' ? sum.summary : '',
-									card.category
+									card.category,
+									card.sources.map(s => s.url)
 								)}
 							>✦ Generate Script</button>
 						{:else if scr.s === 'loading'}
@@ -251,7 +252,8 @@
 								card.id,
 								sum?.s === 'done' ? sum.title : card.headline,
 								sum?.s === 'done' ? sum.summary : '',
-								card.category
+								card.category,
+								card.sources.map(s => s.url)
 							)}>Retry</button>
 						{/if}
 					</div>

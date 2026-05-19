@@ -4,7 +4,14 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const OPENAI_API_KEY = (process.env.OPENAI_API_KEY ?? '').trim().replace(/^["']|["']$/g, '');
 
-const BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
+const FETCH_HEADERS = {
+	'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+	'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+	'Accept-Language': 'en-IN,en;q=0.9',
+	'Accept-Encoding': 'gzip, deflate, br',
+	'Cache-Control': 'no-cache',
+	'Upgrade-Insecure-Requests': '1'
+};
 
 function stripHtml(html) {
 	return html
@@ -13,6 +20,24 @@ function stripHtml(html) {
 		.replace(/<[^>]+>/g, ' ')
 		.replace(/\s+/g, ' ')
 		.trim();
+}
+
+async function fetchArticleText(urls) {
+	for (const url of urls) {
+		if (!url) continue;
+		try {
+			const r = await fetch(url, {
+				headers: FETCH_HEADERS,
+				redirect: 'follow',
+				signal: AbortSignal.timeout(10000)
+			});
+			if (r.ok) {
+				const text = stripHtml(await r.text());
+				if (text.length > 200) return text.slice(0, 5000);
+			}
+		} catch { /* try next */ }
+	}
+	return '';
 }
 
 // CORS — allow requests from the static site
@@ -30,14 +55,7 @@ app.get('/summarize', async (req, res) => {
 	if (!articleUrl) return res.status(400).json({ error: 'url param required' });
 	if (!OPENAI_API_KEY) return res.status(500).json({ error: 'OPENAI_API_KEY not configured' });
 
-	let articleText = '';
-	try {
-		const r = await fetch(articleUrl, {
-			headers: { 'User-Agent': BROWSER_UA },
-			signal: AbortSignal.timeout(8000)
-		});
-		if (r.ok) articleText = stripHtml(await r.text()).slice(0, 4000);
-	} catch { /* proceed with headline only */ }
+	const articleText = await fetchArticleText([articleUrl]);
 
 	try {
 		const context = articleText
@@ -54,7 +72,7 @@ app.get('/summarize', async (req, res) => {
 				messages: [
 					{
 						role: 'system',
-						content: 'You are a financial news summarizer for AngelOne, an Indian stock market YouTube channel network. Be factual, include key numbers, explain why Indian retail investors should care. Respond only with valid JSON.'
+						content: 'You are a financial news summarizer for AngelOne, an Indian stock market YouTube channel network. Be factual, include key numbers, explain why Indian retail investors should care. Respond only with valid JSON. CRITICAL: Only use numbers and facts explicitly present in the provided text. Never invent specific figures.'
 					},
 					{
 						role: 'user',
@@ -84,6 +102,8 @@ app.get('/summarize', async (req, res) => {
 app.get('/health', (_, res) => res.json({ ok: true }));
 
 const SCRIPT_SYSTEM = `You write 20-second YouTube Shorts scripts for Angel One Bytes — an Indian markets and personal finance channel. Audience: retail investors who understand basic finance but not jargon.
+
+CRITICAL RULE: Only use numbers, percentages, and financial figures that are EXPLICITLY provided in the input context. If a specific number is not in the input, do NOT invent it. Describe direction and scale in words if needed.
 
 STRUCTURE (6 lines, each on its own line):
 Line 1 — Hook: The most surprising, contrasting, or urgent fact. Lead with a stock move + contrast, a milestone, a policy change, or a human impact. Never start with context or a company description. Make the viewer stop scrolling.
@@ -120,7 +140,7 @@ RECURRING CONTEXT (use where relevant):
 - Petrol hiked ₹3 on May 15, second hike ₹0.90 on May 19
 - West Asia: US-Iran ceasefire April 8, 2-week suspension, crude above $100 — relevant to aviation, OMCs, auto, energy, power, chemicals, pharma
 
-SECTOR METRICS (include where available):
+SECTOR METRICS (include where available in the input):
 IT: TCV, Deal Wins, Forward Guidance
 Banks/NBFC: AUM/Loan Growth, NPA, ROE, ROA, Forward Guidance
 Insurance: AUM, VNB Margin, RoEV, Solvency Ratio, Forward Guidance
@@ -137,8 +157,19 @@ app.get('/script', async (req, res) => {
 	const headline = (req.query.headline ?? '').slice(0, 300);
 	const summary = (req.query.summary ?? '').slice(0, 600);
 	const category = (req.query.category ?? '').slice(0, 50);
+	// Accept comma-separated list of source URLs to try fetching article text
+	const sourceUrls = (req.query.urls ?? req.query.url ?? '').split(',').filter(Boolean);
+
 	if (!headline) return res.status(400).json({ error: 'headline param required' });
 	if (!OPENAI_API_KEY) return res.status(500).json({ error: 'OPENAI_API_KEY not configured' });
+
+	const articleText = await fetchArticleText(sourceUrls);
+
+	const context = [
+		`Headline: ${headline}`,
+		summary ? `Summary: ${summary}` : '',
+		articleText ? `Article text: ${articleText}` : ''
+	].filter(Boolean).join('\n');
 
 	try {
 		const r = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -150,7 +181,7 @@ app.get('/script', async (req, res) => {
 				temperature: 0.4,
 				messages: [
 					{ role: 'system', content: SCRIPT_SYSTEM },
-					{ role: 'user', content: `Category: ${category}\nHeadline: ${headline}\nSummary: ${summary || '(not available)'}` }
+					{ role: 'user', content: `Category: ${category}\n${context}` }
 				]
 			})
 		});
