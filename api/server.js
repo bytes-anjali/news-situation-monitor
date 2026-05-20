@@ -101,6 +101,59 @@ app.get('/summarize', async (req, res) => {
 
 app.get('/health', (_, res) => res.json({ ok: true }));
 
+// ── Server-side RSS news fetching ────────────────────────────────────────────
+
+const NEWS_FEEDS_SERVER = [
+	{ id: 'et-markets',   name: 'ET Markets',        color: '#ff6b2b', url: 'https://economictimes.indiatimes.com/markets/rss.cms' },
+	{ id: 'et',           name: 'Economic Times',     color: '#ff9800', url: 'https://economictimes.indiatimes.com/rssfeedsdefault.cms' },
+	{ id: 'mint',         name: 'Mint',               color: '#4caf50', url: 'https://news.google.com/rss/search?q=site:livemint.com+finance+OR+market+OR+stock&hl=en-IN&gl=IN&ceid=IN:en' },
+	{ id: 'bs',           name: 'Business Standard',  color: '#4488ff', url: 'https://news.google.com/rss/search?q=site:business-standard.com+market+OR+stock+OR+finance&hl=en-IN&gl=IN&ceid=IN:en' },
+	{ id: 'moneycontrol', name: 'MoneyControl',       color: '#9c27b0', url: 'https://news.google.com/rss/search?q=site:moneycontrol.com+stock+OR+market+OR+nifty&hl=en-IN&gl=IN&ceid=IN:en' },
+	{ id: 'ndtv-profit',  name: 'NDTV Profit',        color: '#e91e63', url: 'https://news.google.com/rss/search?q=site:ndtvprofit.com+stock+OR+market+OR+sensex&hl=en-IN&gl=IN&ceid=IN:en' }
+];
+
+function parseRSSServer(xml, feed) {
+	const items = [];
+	const itemRx = /<item[^>]*>([\s\S]*?)<\/item>/gi;
+	let m;
+	while ((m = itemRx.exec(xml)) !== null) {
+		const body = m[1];
+		const rawTitle = (/<title[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/i.exec(body) || [])[1]?.trim() || '';
+		const title = rawTitle.replace(/\s+-\s+[^-]+$/, '').trim();
+		const link =
+			(/<link[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/link>/i.exec(body) || [])[1]?.trim() ||
+			(/<guid[^>]*>([\s\S]*?)<\/guid>/i.exec(body) || [])[1]?.trim() || '';
+		const pubDate = (/<pubDate[^>]*>([\s\S]*?)<\/pubDate>/i.exec(body) || [])[1]?.trim() || '';
+		if (title && link) items.push({ title, link, pubDate, feedId: feed.id, feedName: feed.name, feedColor: feed.color });
+	}
+	return items;
+}
+
+let newsCache = { items: [], fetchedAt: 0 };
+const NEWS_CACHE_TTL = 5 * 60 * 1000;
+
+app.get('/news', async (req, res) => {
+	if (Date.now() - newsCache.fetchedAt < NEWS_CACHE_TTL && newsCache.items.length > 0) {
+		return res.json({ items: newsCache.items, cached: true });
+	}
+	const results = await Promise.allSettled(
+		NEWS_FEEDS_SERVER.map(async (feed) => {
+			const r = await fetch(feed.url, { headers: FETCH_HEADERS, signal: AbortSignal.timeout(12000) });
+			if (!r.ok) throw new Error(`HTTP ${r.status}`);
+			const xml = await r.text();
+			return parseRSSServer(xml, feed);
+		})
+	);
+	const items = [];
+	for (const result of results) {
+		if (result.status === 'fulfilled') items.push(...result.value);
+	}
+	if (items.length > 0) {
+		newsCache = { items, fetchedAt: Date.now() };
+	}
+	res.json({ items, cached: false });
+});
+
 // RSS proxy — fetches any RSS/XML feed server-side, bypassing browser CORS restrictions
 app.get('/rss-proxy', async (req, res) => {
 	const url = req.query.url;

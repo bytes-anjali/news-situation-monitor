@@ -88,6 +88,10 @@
 	}
 
 	onMount(() => {
+		// Pre-warm Express API server (Render free tier cold-starts take ~20s)
+		const API_BASE = (import.meta.env?.VITE_API_URL ?? '').replace(/\/$/, '');
+		if (API_BASE) fetch(`${API_BASE}/health`).catch(() => {});
+
 		handleRefresh();
 
 		const marketTimer = setInterval(silentRefreshMarkets, MARKET_REFRESH_MS);

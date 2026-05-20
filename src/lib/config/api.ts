@@ -27,7 +27,7 @@ export const CORS_PROXIES_COMPAT = { primary: CORS_PROXY_URL, fallback: 'https:/
 
 export const TRENDS_WORKER_URL = 'https://news-trends.mailboxanj.workers.dev/trends';
 
-const PROXY_TIMEOUT_MS = 6000;
+const PROXY_TIMEOUT_MS = 8000;
 
 async function tryProxies(url: string, proxies: string[]): Promise<Response> {
 	const encodedUrl = encodeURIComponent(url);
