@@ -115,9 +115,21 @@ function deduplicateAndGroup(items: RawItem[]): NewsCard[] {
 
 	const groups: Group[] = [];
 
+	const now = Date.now();
+	const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
 	for (const item of items) {
 		const tokens = tokenize(item.title);
-		const ts = item.pubDate ? new Date(item.pubDate) : new Date(0);
+		let ts: Date;
+		if (item.pubDate) {
+			const parsed = new Date(item.pubDate);
+			// If date is valid and not older than 7 days, use it; otherwise skip
+			if (isNaN(parsed.getTime())) { ts = new Date(now); }
+			else if (now - parsed.getTime() > MAX_AGE_MS) continue;
+			else { ts = parsed; }
+		} else {
+			ts = new Date(now);
+		}
 
 		let matched = false;
 		for (const group of groups) {
