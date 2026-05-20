@@ -126,7 +126,7 @@ function parseRSS(xmlText: string, feed: DataFeed): RawItem[] {
 // ── Main fetch function ──────────────────────────────────────────────────────
 
 function processItems(items: RawItem[], feed: DataFeed, now: number): NewsCard[] {
-	const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+	const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days — regulatory feeds update infrequently
 	const cards: NewsCard[] = [];
 	for (const item of items) {
 		let ts: Date;

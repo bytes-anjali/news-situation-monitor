@@ -15,8 +15,9 @@ export const RSS_PROXIES: string[] = [
 	'https://api.allorigins.win/raw?url='
 ];
 
-// For Yahoo Finance / market data — public proxies only (server IPs often blocked by Yahoo)
+// For Yahoo Finance / market data — Cloudflare Worker first (works reliably for Yahoo), then public proxies
 export const MARKET_PROXIES: string[] = [
+	'https://situation-monitor-proxy.seanthielen-e.workers.dev/?url=',
 	'https://corsproxy.io/?url=',
 	'https://api.allorigins.win/raw?url='
 ];
