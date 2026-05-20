@@ -94,6 +94,7 @@
 		<div class="gl-half">
 			<div class="section-head">
 				<span class="section-title gainers-title">▲ Gainers</span>
+				<button class="refresh-gl" onclick={onRefreshGainers} disabled={$markets.gainersLoading} title="Refresh">↻</button>
 			</div>
 			{#if $markets.gainersLoading}
 				<div class="loading">Loading…</div>
@@ -298,4 +299,18 @@
 		background: var(--border);
 		color: var(--text);
 	}
+
+	.refresh-gl {
+		font-size: 0.65rem;
+		background: none;
+		border: none;
+		color: var(--text-muted);
+		cursor: pointer;
+		padding: 0 0.2rem;
+		line-height: 1;
+		transition: color 0.15s;
+	}
+
+	.refresh-gl:hover:not(:disabled) { color: var(--text); }
+	.refresh-gl:disabled { opacity: 0.4; cursor: not-allowed; }
 </style>

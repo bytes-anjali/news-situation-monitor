@@ -87,20 +87,15 @@
 
 	let sums = $state<Record<string, SumState>>({});
 
-	$effect(() => {
-		if (!isSummaryEnabled()) return;
-		for (const card of filteredCards) {
-			const url = card.sources[0]?.url;
-			if (!url) continue;
-			const existing = untrack(() => sums[url]);
-			if (existing) continue;
-
-			sums[url] = { s: 'loading' };
-			fetchSummary(url, card.headline)
-				.then((r: ArticleSummary) => { sums[url] = { s: 'done', ...r }; })
-				.catch((e: Error) => { sums[url] = { s: 'error', msg: e.message ?? 'Failed' }; });
-		}
-	});
+	function getSummary(url: string, headline: string) {
+		if (!isSummaryEnabled() || !url) return;
+		const existing = untrack(() => sums[url]);
+		if (existing && existing.s !== 'error') return;
+		sums[url] = { s: 'loading' };
+		fetchSummary(url, headline)
+			.then((r: ArticleSummary) => { sums[url] = { s: 'done', ...r }; })
+			.catch((e: Error) => { sums[url] = { s: 'error', msg: e.message ?? 'Failed' }; });
+	}
 
 	// ── Script Generation ────────────────────────────────────────────────────────
 	const API_BASE = import.meta.env.VITE_API_URL ?? '';
@@ -208,18 +203,22 @@
 					<span class="timestamp">{relativeTime(card.timestamp)}</span>
 				</div>
 
-				{#if sum?.s === 'done'}
-					<p class="headline ai-title">{sum.title}</p>
-				{:else}
-					<p class="headline">{card.headline}</p>
-				{/if}
+				<p class="headline" class:ai-title={sum?.s === 'done'}>
+					{sum?.s === 'done' ? sum.title : card.headline}
+				</p>
 
 				{#if sum?.s === 'loading'}
 					<div class="summary-shimmer"></div>
 				{:else if sum?.s === 'done'}
 					<p class="summary">{sum.summary}</p>
 				{:else if sum?.s === 'error'}
-					<p class="summary-error">⚠ {sum.msg}</p>
+					<p class="summary-error">⚠ {sum.msg}
+						<button class="inline-retry" onclick={() => getSummary(sumUrl ?? '', card.headline)}>retry</button>
+					</p>
+				{:else if isSummaryEnabled() && sumUrl}
+					<button class="summary-btn" onclick={() => getSummary(sumUrl, card.headline)}>
+						Get AI Summary
+					</button>
 				{/if}
 
 				<div class="card-sources">
@@ -470,6 +469,32 @@
 		color: var(--red);
 		margin: 0 0 0.5rem 0;
 		opacity: 0.7;
+	}
+
+	.summary-btn {
+		font-size: 0.6rem;
+		font-family: inherit;
+		padding: 0.2rem 0.6rem;
+		background: transparent;
+		border: 1px solid var(--border);
+		border-radius: 3px;
+		color: var(--text-muted);
+		cursor: pointer;
+		margin-bottom: 0.5rem;
+		transition: all 0.15s;
+	}
+
+	.summary-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+	.inline-retry {
+		font-size: 0.58rem;
+		font-family: inherit;
+		background: none;
+		border: none;
+		color: var(--accent);
+		cursor: pointer;
+		padding: 0;
+		text-decoration: underline;
 	}
 
 	.summary-shimmer {
