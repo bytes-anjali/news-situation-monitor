@@ -189,24 +189,23 @@ function deduplicateAndGroup(items: RawItem[]): NewsCard[] {
 }
 
 export async function fetchIndianNews(): Promise<NewsCard[]> {
-	const allItems: RawItem[] = [];
-	let failCount = 0;
-
-	for (const feed of INDIAN_NEWS_FEEDS) {
-		try {
+	const results = await Promise.allSettled(
+		INDIAN_NEWS_FEEDS.map(async (feed) => {
 			const response = await fetchWithProxy(feed.url);
 			const text = await response.text();
-			const items = parseRSS(text, feed.id, feed.name, feed.color);
-			allItems.push(...items);
-		} catch (err) {
-			console.warn(`[News] Failed to fetch ${feed.name}:`, err);
-			failCount++;
-		}
-		await new Promise((r) => setTimeout(r, 200));
+			return parseRSS(text, feed.id, feed.name, feed.color);
+		})
+	);
+
+	const allItems: RawItem[] = [];
+	let failCount = 0;
+	for (const result of results) {
+		if (result.status === 'fulfilled') allItems.push(...result.value);
+		else failCount++;
 	}
 
 	if (failCount === INDIAN_NEWS_FEEDS.length) {
-		throw new Error('All news feeds failed — check your internet connection or try again shortly');
+		throw new Error('All news feeds failed — check your connection or try again shortly');
 	}
 
 	return deduplicateAndGroup(allItems);

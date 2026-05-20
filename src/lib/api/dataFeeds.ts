@@ -1,4 +1,4 @@
-import type { NewsCard, NewsSource } from '$lib/types';
+import type { NewsCard } from '$lib/types';
 import { fetchWithProxy } from '$lib/config/api';
 import { scoreRelevance } from '$lib/config/newsCategories';
 
@@ -125,56 +125,50 @@ function parseRSS(xmlText: string, feed: DataFeed): RawItem[] {
 
 // ── Main fetch function ──────────────────────────────────────────────────────
 
-export async function fetchDataFeeds(): Promise<NewsCard[]> {
-	const now = Date.now();
+function processItems(items: RawItem[], feed: DataFeed, now: number): NewsCard[] {
 	const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 	const cards: NewsCard[] = [];
+	for (const item of items) {
+		let ts: Date;
+		if (item.pubDate) {
+			const parsed = new Date(item.pubDate);
+			if (isNaN(parsed.getTime())) { ts = new Date(now); }
+			else if (now - parsed.getTime() > MAX_AGE_MS) continue;
+			else { ts = parsed; }
+		} else {
+			ts = new Date(now);
+		}
+		const score = scoreDataItem(item.title);
+		if (feed.minScore > 0 && score < feed.minScore) continue;
+		cards.push({
+			id: `data-${feed.id}-${item.link.slice(-20)}-${ts.getTime()}`,
+			headline: item.title,
+			sources: [{ feedId: feed.id, name: feed.name, url: item.link, color: feed.color }],
+			timestamp: ts,
+			category: feed.category,
+			angle: '',
+			isDataCard: true
+		});
+	}
+	return cards;
+}
 
-	for (const feed of DATA_FEEDS) {
-		try {
+export async function fetchDataFeeds(): Promise<NewsCard[]> {
+	const now = Date.now();
+
+	const results = await Promise.allSettled(
+		DATA_FEEDS.map(async (feed) => {
 			const response = await fetchWithProxy(feed.url);
 			const text = await response.text();
-			const items = parseRSS(text, feed);
+			return processItems(parseRSS(text, feed), feed, now);
+		})
+	);
 
-			for (const item of items) {
-				let ts: Date;
-				if (item.pubDate) {
-					const parsed = new Date(item.pubDate);
-					if (isNaN(parsed.getTime())) { ts = new Date(now); }
-					else if (now - parsed.getTime() > MAX_AGE_MS) continue;
-					else { ts = parsed; }
-				} else {
-					ts = new Date(now);
-				}
-
-				const score = scoreDataItem(item.title);
-				if (feed.minScore > 0 && score < feed.minScore) continue;
-
-				const source: NewsSource = {
-					feedId: feed.id,
-					name: feed.name,
-					url: item.link,
-					color: feed.color
-				};
-
-				cards.push({
-					id: `data-${feed.id}-${item.link.slice(-20)}-${ts.getTime()}`,
-					headline: item.title,
-					sources: [source],
-					timestamp: ts,
-					category: feed.category,
-					angle: '',
-					isDataCard: true
-				});
-			}
-		} catch (err) {
-			console.warn(`[DataFeeds] Failed to fetch ${feed.name}:`, err);
-		}
-
-		await new Promise((r) => setTimeout(r, 300));
+	const cards: NewsCard[] = [];
+	for (const result of results) {
+		if (result.status === 'fulfilled') cards.push(...result.value);
 	}
 
-	// Deduplicate by headline similarity and sort newest first
 	const seen = new Set<string>();
 	return cards
 		.filter((c) => {

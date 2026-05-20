@@ -1,7 +1,7 @@
 export type NewsCategory = 'stocks' | 'mutual-funds' | 'personal-finance' | 'other';
 
-export const MAX_CARDS = 28;
-export const MIN_SCORE = 4;
+export const MAX_CARDS = 50;
+export const MIN_SCORE = 0;
 
 // ── Relevance scoring ─────────────────────────────────────────────────────────
 // Uses simple includes() so "Nifty50", "Nifty 50", "nifty" all match.
