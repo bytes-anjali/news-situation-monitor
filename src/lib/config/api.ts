@@ -6,20 +6,22 @@ import { browser } from '$app/environment';
 
 const isDev = browser ? (import.meta.env?.DEV ?? false) : false;
 
-export const CORS_PROXIES = [
-	'https://situation-monitor-proxy.seanthielen-e.workers.dev/?url=',
+// API server (Render Web Service) used as primary RSS proxy — no CORS issues, most reliable
+const API_BASE = browser ? (import.meta.env.VITE_API_URL ?? '') : '';
+
+export const CORS_PROXIES: string[] = [
+	...(API_BASE ? [`${API_BASE}/rss-proxy?url=`] : []),
 	'https://corsproxy.io/?url=',
 	'https://api.allorigins.win/raw?url='
-] as const;
+];
 
 // Keep for any legacy imports
-export const CORS_PROXY_URL = CORS_PROXIES[1];
-export const CORS_PROXIES_COMPAT = { primary: CORS_PROXIES[0], fallback: CORS_PROXIES[1] };
+export const CORS_PROXY_URL = 'https://corsproxy.io/?url=';
+export const CORS_PROXIES_COMPAT = { primary: CORS_PROXY_URL, fallback: 'https://api.allorigins.win/raw?url=' };
 
-// Cloudflare Worker — Google Trends B&F proxy
 export const TRENDS_WORKER_URL = 'https://news-trends.mailboxanj.workers.dev/trends';
 
-const PROXY_TIMEOUT_MS = 8000;
+const PROXY_TIMEOUT_MS = 6000;
 
 /**
  * Fetch through CORS proxy with per-attempt timeout and automatic fallback.

@@ -101,6 +101,21 @@ app.get('/summarize', async (req, res) => {
 
 app.get('/health', (_, res) => res.json({ ok: true }));
 
+// RSS proxy — fetches any RSS/XML feed server-side, bypassing browser CORS restrictions
+app.get('/rss-proxy', async (req, res) => {
+	const url = req.query.url;
+	if (!url || !/^https?:\/\//.test(url)) return res.status(400).send('');
+	try {
+		const r = await fetch(url, { headers: FETCH_HEADERS, signal: AbortSignal.timeout(10000) });
+		const text = await r.text();
+		res.setHeader('Content-Type', r.headers.get('content-type') || 'application/xml; charset=utf-8');
+		res.status(r.ok ? 200 : r.status).send(text);
+	} catch (e) {
+		console.warn('[rss-proxy]', e.message);
+		res.status(502).send('');
+	}
+});
+
 // NSE bulk deals — returns today's bulk deals as card-ready items
 app.get('/data/bulk-deals', async (req, res) => {
 	try {
