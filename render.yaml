@@ -5,6 +5,9 @@ services:
     runtime: static
     buildCommand: npm install && npm run build
     staticPublishPath: build
+    envVars:
+      - key: VITE_API_URL
+        sync: false  # Set this to your Express API URL, e.g. https://angelone-api.onrender.com
     headers:
       - path: /*
         name: Cache-Control
@@ -14,7 +17,7 @@ services:
         source: /*
         destination: /app.html
 
-  # Express API — OpenAI summarizer
+  # Express API — OpenAI summarizer + RSS news proxy
   - type: web
     name: angelone-api
     runtime: node
