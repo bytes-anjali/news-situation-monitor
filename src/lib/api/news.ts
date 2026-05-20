@@ -134,8 +134,9 @@ function deduplicateAndGroup(items: RawItem[]): NewsCard[] {
 		let matched = false;
 		for (const group of groups) {
 			const { jaccard, shared } = similarity(group.tokens, tokens);
-			const entityMatch = sharedEntities(group.tokens, tokens) >= 1;
-			if ((jaccard >= 0.2 && shared >= 2) || (entityMatch && shared >= 1)) {
+			const entityShared = sharedEntities(group.tokens, tokens);
+			// Same story: high word overlap OR same company/index mentioned in similar context
+			if ((jaccard >= 0.35 && shared >= 2) || (entityShared >= 2 && shared >= 2)) {
 				if (!group.sources.has(item.feedId)) {
 					group.sources.set(item.feedId, {
 						feedId: item.feedId,

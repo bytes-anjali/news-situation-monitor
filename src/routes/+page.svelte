@@ -64,7 +64,7 @@
 			await loadMarkets();
 			await loadGainersLosers();
 			refresh.nextStage();
-			await Promise.all([loadNews(), loadTrends()]);
+			await Promise.all([loadNews(), loadTrends(), loadDataFeeds()]);
 			refresh.endRefresh();
 		} catch (err) {
 			refresh.endRefresh([String(err)]);
