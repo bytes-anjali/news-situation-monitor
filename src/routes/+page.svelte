@@ -2,8 +2,9 @@
 	import { onMount } from 'svelte';
 	import { Header } from '$lib/components/layout';
 	import { MarketBar, ContentSpottingPanel } from '$lib/components/panels';
-	import { markets, news, refresh } from '$lib/stores';
+	import { markets, news, data, refresh } from '$lib/stores';
 	import { fetchMarkets, fetchGainersLosers, fetchIndianNews, fetchBusinessTrends, type TrendItem } from '$lib/api';
+	import { fetchDataFeeds } from '$lib/api/dataFeeds';
 	import { getNewsRefreshInterval } from '$lib/utils/marketHours';
 
 	const MARKET_REFRESH_MS = 60 * 1000;
@@ -44,6 +45,16 @@
 		try {
 			trends = await fetchBusinessTrends();
 		} catch { /* silent */ }
+	}
+
+	async function loadDataFeeds() {
+		data.setLoading(true);
+		try {
+			const cards = await fetchDataFeeds();
+			data.setCards(cards);
+		} catch (err) {
+			data.setError(String(err));
+		}
 	}
 
 	async function handleRefresh() {
@@ -108,7 +119,7 @@
 	<main class="main-content">
 		<div class="layout">
 			<MarketBar onRefreshGainers={loadGainersLosers} />
-			<ContentSpottingPanel onRefresh={loadNews} {trends} />
+			<ContentSpottingPanel onRefresh={loadNews} onRefreshData={loadDataFeeds} {trends} />
 		</div>
 	</main>
 </div>

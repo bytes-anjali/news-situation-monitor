@@ -20,6 +20,8 @@ export {
 	type NewsState
 } from './news';
 
+export { data } from './data';
+
 export {
 	refresh,
 	isRefreshing,

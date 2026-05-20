@@ -101,6 +101,36 @@ app.get('/summarize', async (req, res) => {
 
 app.get('/health', (_, res) => res.json({ ok: true }));
 
+// NSE bulk deals — returns today's bulk deals as card-ready items
+app.get('/data/bulk-deals', async (req, res) => {
+	try {
+		const r = await fetch('https://www.nseindia.com/api/bulk-deals', {
+			headers: {
+				...FETCH_HEADERS,
+				'Referer': 'https://www.nseindia.com/market-data/bulk-deals',
+				'X-Requested-With': 'XMLHttpRequest'
+			},
+			signal: AbortSignal.timeout(10000)
+		});
+		if (!r.ok) return res.status(502).json({ items: [] });
+		const data = await r.json();
+		const deals = (data?.data ?? []).slice(0, 20).map((d) => ({
+			symbol: d.symbol ?? '',
+			name: d.mktCapType ?? d.symbol ?? '',
+			client: d.clientName ?? '',
+			buySell: d.buySell ?? '',
+			qty: d.tradedQty ?? 0,
+			price: d.tradePrice ?? 0,
+			headline: `${d.buySell === 'BUY' ? '▲' : '▼'} ${d.symbol} bulk deal — ${d.clientName ?? 'institution'} ${d.buySell?.toLowerCase() ?? ''} ${Number(d.tradedQty ?? 0).toLocaleString('en-IN')} shares at ₹${d.tradePrice}`
+		}));
+		res.json({ items: deals });
+	} catch (e) {
+		console.warn('[bulk-deals]', e.message);
+		res.json({ items: [] });
+	}
+});
+
+
 const SCRIPT_SYSTEM = `You write 20-second YouTube Shorts scripts for Angel One Bytes — an Indian markets and personal finance channel. Audience: retail investors who understand basic finance but not jargon.
 
 CRITICAL RULE: Only use numbers, percentages, and financial figures that are EXPLICITLY provided in the input context. If a specific number is not in the input, do NOT invent it. Describe direction and scale in words if needed.

@@ -1,20 +1,22 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import Panel from '$lib/components/common/Panel.svelte';
-	import { news } from '$lib/stores';
+	import { news, data } from '$lib/stores';
 	import { INDIAN_NEWS_FEEDS } from '$lib/config/feeds';
+	import { DATA_FEEDS } from '$lib/api/dataFeeds';
 	import { fetchSummary, isSummaryEnabled, type ArticleSummary } from '$lib/api/summarize';
 	import type { TrendItem } from '$lib/api/trends';
 	import type { NewsCategory } from '$lib/types';
 
 	interface Props {
 		onRefresh?: () => void;
+		onRefreshData?: () => void;
 		trends?: TrendItem[];
 	}
 
-	let { onRefresh, trends = [] }: Props = $props();
+	let { onRefresh, onRefreshData, trends = [] }: Props = $props();
 
-	type Tab = 'all' | NewsCategory;
+	type Tab = 'all' | NewsCategory | 'data-feeds';
 	let activeTab = $state<Tab>('all');
 
 	const TABS: { id: Tab; label: string }[] = [
@@ -22,21 +24,28 @@
 		{ id: 'stocks', label: 'Stocks' },
 		{ id: 'mutual-funds', label: 'Mutual Funds' },
 		{ id: 'personal-finance', label: 'Personal Finance' },
-		{ id: 'other', label: 'Other' }
+		{ id: 'other', label: 'Other' },
+		{ id: 'data-feeds', label: 'Trends & Data' }
 	];
 
-	const CAT_COLORS: Record<NewsCategory, string> = {
+	const CAT_COLORS: Record<string, string> = {
 		stocks: '#58a6ff',
 		'mutual-funds': '#3fb950',
 		'personal-finance': '#d29922',
-		other: '#8b949e'
+		other: '#8b949e',
+		regulatory: '#e91e63',
+		'corp-action': '#ff9800',
+		'market-data': '#ffd600'
 	};
 
-	const CAT_LABELS: Record<NewsCategory, string> = {
+	const CAT_LABELS: Record<string, string> = {
 		stocks: 'Stocks',
 		'mutual-funds': 'Mutual Funds',
 		'personal-finance': 'Personal Finance',
-		other: 'Other'
+		other: 'Other',
+		regulatory: 'Regulatory',
+		'corp-action': 'Corp Action',
+		'market-data': 'Market Data'
 	};
 
 	function relativeTime(date: Date): string {
@@ -66,6 +75,7 @@
 	}
 
 	const filteredCards = $derived.by(() => {
+		if (activeTab === 'data-feeds') return $data.cards;
 		const cards =
 			activeTab === 'all' ? $news.cards : $news.cards.filter((c) => c.category === activeTab);
 		const trending = cards.filter((c) => getMatchingTrend(c.headline) !== null);
@@ -74,9 +84,12 @@
 	});
 
 	function tabCount(id: Tab): number {
+		if (id === 'data-feeds') return $data.cards.length;
 		if (id === 'all') return $news.cards.length;
 		return $news.cards.filter((c) => c.category === id).length;
 	}
+
+	const dataFeedColors = Object.fromEntries(DATA_FEEDS.map((f) => [f.id, f.color]));
 
 	// ── AI Summaries ────────────────────────────────────────────────────────────
 	type SumState =
@@ -148,18 +161,34 @@
 	{/snippet}
 
 	<div class="news-toolbar">
-		<button
-			class="refresh-news-btn"
-			onclick={onRefresh}
-			disabled={$news.loading}
-			title="Manually refresh news"
-		>
-			↻ Refresh News
-		</button>
-		{#if $news.lastUpdated}
-			<span class="news-updated">
-				Updated {new Date($news.lastUpdated).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
-			</span>
+		{#if activeTab === 'data-feeds'}
+			<button
+				class="refresh-news-btn"
+				onclick={onRefreshData}
+				disabled={$data.loading}
+				title="Manually refresh data feeds"
+			>
+				↻ Refresh Data
+			</button>
+			{#if $data.lastUpdated}
+				<span class="news-updated">
+					Updated {new Date($data.lastUpdated).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+				</span>
+			{/if}
+		{:else}
+			<button
+				class="refresh-news-btn"
+				onclick={onRefresh}
+				disabled={$news.loading}
+				title="Manually refresh news"
+			>
+				↻ Refresh News
+			</button>
+			{#if $news.lastUpdated}
+				<span class="news-updated">
+					Updated {new Date($news.lastUpdated).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+				</span>
+			{/if}
 		{/if}
 	</div>
 
@@ -223,7 +252,8 @@
 
 				<div class="card-sources">
 					{#each card.sources as src}
-						<a href={src.url} target="_blank" rel="noopener noreferrer" class="source-chip" style="--chip-color:{feedColors[src.feedId] ?? '#888'}">
+						{@const chipColor = feedColors[src.feedId] ?? dataFeedColors[src.feedId] ?? src.color ?? '#888'}
+						<a href={src.url} target="_blank" rel="noopener noreferrer" class="source-chip" style="--chip-color:{chipColor}">
 							<span class="dot">●</span>{src.name}
 						</a>
 					{/each}
@@ -274,11 +304,13 @@
 			</article>
 		{/each}
 
-		{#if filteredCards.length === 0 && !$news.loading}
+		{#if filteredCards.length === 0 && !$news.loading && !$data.loading}
 			<div class="empty">
-				{$news.cards.length === 0
-					? 'Click Refresh News to load stories'
-					: 'No stories in this category yet'}
+				{#if activeTab === 'data-feeds'}
+					{$data.cards.length === 0 ? 'Click Refresh Data to load regulatory & market data' : 'No data in this view'}
+				{:else}
+					{$news.cards.length === 0 ? 'Click Refresh News to load stories' : 'No stories in this category yet'}
+				{/if}
 			</div>
 		{/if}
 	</div>
