@@ -6,16 +6,14 @@ import { browser } from '$app/environment';
 
 const isDev = browser ? (import.meta.env?.DEV ?? false) : false;
 
-const API_BASE = browser ? (import.meta.env.VITE_API_URL ?? '') : '';
-
-// For RSS feeds — API server handles these server-side (no CORS), falls back to public proxies
+// RSS feeds and market data both use the same Cloudflare Worker → corsproxy.io → allorigins chain.
+// This was the working config before any proxy changes.
 export const RSS_PROXIES: string[] = [
-	...(API_BASE ? [`${API_BASE}/rss-proxy?url=`] : []),
+	'https://situation-monitor-proxy.seanthielen-e.workers.dev/?url=',
 	'https://corsproxy.io/?url=',
 	'https://api.allorigins.win/raw?url='
 ];
 
-// For Yahoo Finance / market data — Cloudflare Worker first (works reliably for Yahoo), then public proxies
 export const MARKET_PROXIES: string[] = [
 	'https://situation-monitor-proxy.seanthielen-e.workers.dev/?url=',
 	'https://corsproxy.io/?url=',
