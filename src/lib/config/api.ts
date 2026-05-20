@@ -6,16 +6,23 @@ import { browser } from '$app/environment';
 
 const isDev = browser ? (import.meta.env?.DEV ?? false) : false;
 
-// API server (Render Web Service) used as primary RSS proxy — no CORS issues, most reliable
 const API_BASE = browser ? (import.meta.env.VITE_API_URL ?? '') : '';
 
-export const CORS_PROXIES: string[] = [
+// For RSS feeds — API server handles these server-side (no CORS), falls back to public proxies
+export const RSS_PROXIES: string[] = [
 	...(API_BASE ? [`${API_BASE}/rss-proxy?url=`] : []),
 	'https://corsproxy.io/?url=',
 	'https://api.allorigins.win/raw?url='
 ];
 
+// For Yahoo Finance / market data — public proxies only (server IPs often blocked by Yahoo)
+export const MARKET_PROXIES: string[] = [
+	'https://corsproxy.io/?url=',
+	'https://api.allorigins.win/raw?url='
+];
+
 // Keep for any legacy imports
+export const CORS_PROXIES = RSS_PROXIES;
 export const CORS_PROXY_URL = 'https://corsproxy.io/?url=';
 export const CORS_PROXIES_COMPAT = { primary: CORS_PROXY_URL, fallback: 'https://api.allorigins.win/raw?url=' };
 
@@ -23,30 +30,17 @@ export const TRENDS_WORKER_URL = 'https://news-trends.mailboxanj.workers.dev/tre
 
 const PROXY_TIMEOUT_MS = 6000;
 
-/**
- * Fetch through CORS proxy with per-attempt timeout and automatic fallback.
- * Tries each proxy in order; throws only if all fail.
- */
-export async function fetchWithProxy(url: string): Promise<Response> {
+async function tryProxies(url: string, proxies: string[]): Promise<Response> {
 	const encodedUrl = encodeURIComponent(url);
 	let lastError: unknown;
 
-	for (const proxy of CORS_PROXIES) {
+	for (const proxy of proxies) {
 		const controller = new AbortController();
 		const timer = setTimeout(() => controller.abort(), PROXY_TIMEOUT_MS);
-
 		try {
-			const response = await fetch(proxy + encodedUrl, {
-				signal: controller.signal,
-				headers: {
-					'User-Agent':
-						'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
-				}
-			});
+			const response = await fetch(proxy + encodedUrl, { signal: controller.signal });
 			clearTimeout(timer);
-
 			if (response.ok) return response;
-
 			logger.warn('API', `Proxy ${proxy.split('/')[2]} returned ${response.status}, trying next`);
 			lastError = new Error(`HTTP ${response.status}`);
 		} catch (err) {
@@ -58,6 +52,14 @@ export async function fetchWithProxy(url: string): Promise<Response> {
 	}
 
 	throw new Error(`All proxies failed: ${(lastError as Error)?.message ?? 'unknown error'}`);
+}
+
+export function fetchWithProxy(url: string): Promise<Response> {
+	return tryProxies(url, RSS_PROXIES);
+}
+
+export function fetchWithMarketProxy(url: string): Promise<Response> {
+	return tryProxies(url, MARKET_PROXIES);
 }
 
 export const API_DELAYS = {

@@ -1,4 +1,4 @@
-import { fetchWithProxy, logger } from '$lib/config/api';
+import { fetchWithMarketProxy as fetchWithProxy, logger } from '$lib/config/api';
 import { INDICES, SECTORS } from '$lib/config/indianMarkets';
 import { NIFTY50_SYMBOLS } from '$lib/config/nifty50';
 import type { MarketQuote, StockQuote, MarketsData, GainersLosers } from '$lib/types';
