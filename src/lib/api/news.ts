@@ -190,6 +190,22 @@ function deduplicateAndGroup(items: RawItem[]): NewsCard[] {
 }
 
 export async function fetchIndianNews(): Promise<NewsCard[]> {
+	const API_BASE = (import.meta.env?.VITE_API_URL ?? '').replace(/\/$/, '');
+
+	// Try server-side fetch first (no CORS issues)
+	if (API_BASE) {
+		try {
+			const res = await fetch(`${API_BASE}/news`, { signal: AbortSignal.timeout(20000) });
+			if (res.ok) {
+				const { items } = await res.json();
+				if (Array.isArray(items) && items.length > 0) {
+					return deduplicateAndGroup(items as RawItem[]);
+				}
+			}
+		} catch { /* fall through to client-side proxies */ }
+	}
+
+	// Fallback: browser-side CORS proxy chain
 	const results = await Promise.allSettled(
 		INDIAN_NEWS_FEEDS.map(async (feed) => {
 			const response = await fetchWithProxy(feed.url);
