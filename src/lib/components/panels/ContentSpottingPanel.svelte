@@ -160,38 +160,6 @@
 		</div>
 	{/snippet}
 
-	<div class="news-toolbar">
-		{#if activeTab === 'data-feeds'}
-			<button
-				class="refresh-news-btn"
-				onclick={onRefreshData}
-				disabled={$data.loading}
-				title="Manually refresh data feeds"
-			>
-				↻ Refresh Data
-			</button>
-			{#if $data.lastUpdated}
-				<span class="news-updated">
-					Updated {new Date($data.lastUpdated).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
-				</span>
-			{/if}
-		{:else}
-			<button
-				class="refresh-news-btn"
-				onclick={onRefresh}
-				disabled={$news.loading}
-				title="Manually refresh news"
-			>
-				↻ Refresh News
-			</button>
-			{#if $news.lastUpdated}
-				<span class="news-updated">
-					Updated {new Date($news.lastUpdated).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
-				</span>
-			{/if}
-		{/if}
-	</div>
-
 	{#if trends.length > 0}
 		<div class="trends-bar">
 			<span class="trends-label">🔥 Trending</span>
@@ -202,14 +170,29 @@
 	{/if}
 
 	<div class="tabs">
-		{#each TABS as tab}
-			<button class="tab" class:active={activeTab === tab.id} onclick={() => (activeTab = tab.id)}>
-				{tab.label}
-				{#if tabCount(tab.id) > 0}
-					<span class="tab-count">{tabCount(tab.id)}</span>
-				{/if}
-			</button>
-		{/each}
+		<div class="tab-list">
+			{#each TABS as tab}
+				<button class="tab" class:active={activeTab === tab.id} onclick={() => (activeTab = tab.id)}>
+					{tab.label}
+					{#if tabCount(tab.id) > 0}
+						<span class="tab-count">{tabCount(tab.id)}</span>
+					{/if}
+				</button>
+			{/each}
+		</div>
+		<div class="tab-actions">
+			{#if activeTab === 'data-feeds' && $data.lastUpdated}
+				<span class="tab-updated">{relativeTime(new Date($data.lastUpdated))}</span>
+			{:else if activeTab !== 'data-feeds' && $news.lastUpdated}
+				<span class="tab-updated">{relativeTime(new Date($news.lastUpdated))}</span>
+			{/if}
+			<button
+				class="tab-refresh"
+				onclick={() => activeTab === 'data-feeds' ? onRefreshData?.() : onRefresh?.()}
+				disabled={activeTab === 'data-feeds' ? $data.loading : $news.loading}
+				title="Refresh {activeTab === 'data-feeds' ? 'data feeds' : 'news'}"
+			>↻</button>
+		</div>
 	</div>
 
 	<div class="cards">
@@ -307,9 +290,9 @@
 		{#if filteredCards.length === 0 && !$news.loading && !$data.loading}
 			<div class="empty">
 				{#if activeTab === 'data-feeds'}
-					{$data.cards.length === 0 ? 'Click Refresh Data to load regulatory & market data' : 'No data in this view'}
+					{$data.cards.length === 0 ? 'Click ↻ to load regulatory & market data' : 'No data in this view'}
 				{:else}
-					{$news.cards.length === 0 ? 'Click Refresh News to load stories' : 'No stories in this category yet'}
+					{$news.cards.length === 0 ? 'Click ↻ to load stories' : 'No stories in this category yet'}
 				{/if}
 			</div>
 		{/if}
@@ -326,30 +309,6 @@
 
 	.feed-dot { font-size: 0.6rem; }
 
-	.news-toolbar {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-		margin-bottom: 0.6rem;
-	}
-
-	.refresh-news-btn {
-		font-size: 0.65rem;
-		font-family: inherit;
-		padding: 0.3rem 0.7rem;
-		background: transparent;
-		border: 1px solid var(--border);
-		border-radius: 4px;
-		color: var(--text-dim);
-		cursor: pointer;
-		transition: all 0.15s;
-		flex-shrink: 0;
-	}
-
-	.refresh-news-btn:hover:not(:disabled) { background: var(--border); color: var(--text); }
-	.refresh-news-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-	.news-updated { font-size: 0.6rem; color: var(--text-muted); }
 
 	.trends-bar {
 		display: flex;
@@ -387,12 +346,52 @@
 
 	.tabs {
 		display: flex;
-		gap: 0.2rem;
+		align-items: center;
 		margin-bottom: 0.75rem;
 		border-bottom: 1px solid var(--border);
 		padding-bottom: 0.4rem;
-		flex-wrap: wrap;
+		gap: 0.5rem;
 	}
+
+	.tab-list {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.2rem;
+		flex: 1;
+	}
+
+	.tab-actions {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+		flex-shrink: 0;
+	}
+
+	.tab-updated {
+		font-size: 0.58rem;
+		color: var(--text-muted);
+		white-space: nowrap;
+	}
+
+	.tab-refresh {
+		font-size: 0.75rem;
+		font-family: inherit;
+		width: 1.6rem;
+		height: 1.6rem;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: transparent;
+		border: 1px solid var(--border);
+		border-radius: 4px;
+		color: var(--text-dim);
+		cursor: pointer;
+		transition: all 0.15s;
+		flex-shrink: 0;
+	}
+
+	.tab-refresh:hover:not(:disabled) { background: var(--border); color: var(--text); }
+	.tab-refresh:disabled { opacity: 0.4; cursor: not-allowed; }
 
 	.tab {
 		display: flex;
