@@ -206,7 +206,7 @@
 					<div class="card-badges">
 						<span
 							class="cat-badge"
-							style="color:{CAT_COLORS[card.category]};border-color:{CAT_COLORS[card.category]}33;background:{CAT_COLORS[card.category]}11"
+							style="color:{CAT_COLORS[card.category]};border-color:{CAT_COLORS[card.category]}60;background:{CAT_COLORS[card.category]}18"
 						>{CAT_LABELS[card.category]}</span>
 						{#if matchedTrend !== null}
 							<a href={matchedTrend.shareUrl} target="_blank" rel="noopener noreferrer" class="trend-badge" title="Trending: {matchedTrend.title}">🔥 Trending</a>
@@ -424,18 +424,19 @@
 
 	.tab.active .tab-count { background: var(--surface); }
 
-	.cards { display: flex; flex-direction: column; gap: 0.6rem; }
+	.cards { display: flex; flex-direction: column; gap: 0.85rem; }
 
 	.card {
-		background: var(--bg);
+		background: var(--surface);
 		border: 1px solid var(--border);
-		border-radius: 5px;
-		padding: 0.75rem 0.9rem;
-		transition: border-color 0.15s;
+		border-radius: 8px;
+		padding: 1rem 1.15rem;
+		transition: border-color 0.15s, box-shadow 0.15s;
+		box-shadow: 0 1px 3px rgba(0,0,0,0.06);
 	}
 
-	.card:hover { border-color: var(--border-light); }
-	.card.trending { border-left: 3px solid rgba(210, 153, 34, 0.55); }
+	.card:hover { border-color: var(--border-light); box-shadow: 0 2px 8px rgba(0,0,0,0.10); }
+	.card.trending { border-left: 3px solid rgba(180, 130, 20, 0.6); }
 
 	.card-top {
 		display: flex;
@@ -479,14 +480,14 @@
 	}
 
 	.headline {
-		font-size: 0.84rem;
-		font-weight: 500;
+		font-size: 0.97rem;
+		font-weight: 600;
 		color: var(--text);
 		line-height: 1.45;
-		margin: 0 0 0.4rem 0;
+		margin: 0 0 0.5rem 0;
 	}
 
-	.ai-title { font-weight: 600; }
+	.ai-title { font-weight: 700; }
 
 	.summary {
 		font-size: 0.72rem;
@@ -532,7 +533,7 @@
 		height: 2.4rem;
 		border-radius: 3px;
 		margin-bottom: 0.5rem;
-		background: linear-gradient(90deg, var(--surface) 25%, var(--border) 50%, var(--surface) 75%);
+		background: linear-gradient(90deg, var(--bg) 25%, var(--border) 50%, var(--bg) 75%);
 		background-size: 200% 100%;
 		animation: shimmer 1.4s infinite;
 	}
@@ -553,15 +554,18 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 0.2rem;
-		font-size: 0.58rem;
+		font-size: 0.6rem;
 		font-weight: 600;
 		color: var(--chip-color);
+		background: color-mix(in srgb, var(--chip-color) 10%, transparent);
+		border: 1px solid color-mix(in srgb, var(--chip-color) 35%, transparent);
+		border-radius: 12px;
+		padding: 0.15rem 0.55rem;
 		text-decoration: none;
-		opacity: 0.75;
-		transition: opacity 0.12s;
+		transition: background 0.12s;
 	}
 
-	.source-chip:hover { opacity: 1; text-decoration: underline; }
+	.source-chip:hover { background: color-mix(in srgb, var(--chip-color) 20%, transparent); text-decoration: none; }
 	.dot { font-size: 0.4rem; }
 
 	/* ── Script ── */
@@ -604,8 +608,8 @@
 
 	.script-box {
 		margin-top: 0.65rem;
-		background: var(--surface);
-		border: 1px solid var(--border-light);
+		background: var(--bg);
+		border: 1px solid var(--border);
 		border-radius: 5px;
 		overflow: hidden;
 	}
