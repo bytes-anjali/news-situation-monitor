@@ -45,13 +45,13 @@ export const INDIAN_NEWS_FEEDS: NewsFeed[] = [
 	{
 		id: 'et-wealth',
 		name: 'ET Wealth',
-		url: 'https://economictimes.indiatimes.com/wealth/rss.cms',
+		url: 'https://news.google.com/rss/search?q=site:economictimes.indiatimes.com/wealth&hl=en-IN&gl=IN&ceid=IN:en',
 		color: '#00897b'
 	},
 	{
 		id: 'mf-news',
-		name: 'MF News',
-		url: 'https://news.google.com/rss/search?q=india+"mutual+fund"+OR+SIP+OR+AMFI+OR+NFO&hl=en-IN&gl=IN&ceid=IN:en',
+		name: 'MF / PF',
+		url: 'https://news.google.com/rss/search?q=india+("mutual+fund"+OR+SIP+OR+NFO+OR+EPF+OR+PPF+OR+"income+tax"+OR+"home+loan")&hl=en-IN&gl=IN&ceid=IN:en',
 		color: '#3fb950'
 	}
 ];
