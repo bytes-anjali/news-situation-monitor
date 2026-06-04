@@ -110,8 +110,8 @@ const NEWS_FEEDS_SERVER = [
 	{ id: 'bs',           name: 'Business Standard',  color: '#4488ff', url: 'https://news.google.com/rss/search?q=site:business-standard.com+market+OR+stock+OR+finance&hl=en-IN&gl=IN&ceid=IN:en' },
 	{ id: 'moneycontrol', name: 'MoneyControl',       color: '#9c27b0', url: 'https://news.google.com/rss/search?q=site:moneycontrol.com+stock+OR+market+OR+nifty&hl=en-IN&gl=IN&ceid=IN:en' },
 	{ id: 'ndtv-profit',  name: 'NDTV Profit',        color: '#e91e63', url: 'https://news.google.com/rss/search?q=site:ndtvprofit.com+stock+OR+market+OR+sensex&hl=en-IN&gl=IN&ceid=IN:en' },
-	{ id: 'et-wealth',    name: 'ET Wealth',          color: '#00897b', url: 'https://economictimes.indiatimes.com/wealth/rss.cms' },
-	{ id: 'mf-news',      name: 'MF News',            color: '#3fb950', url: 'https://news.google.com/rss/search?q=india+"mutual+fund"+OR+SIP+OR+AMFI+OR+NFO&hl=en-IN&gl=IN&ceid=IN:en' }
+	{ id: 'et-wealth',    name: 'ET Wealth',          color: '#00897b', url: 'https://news.google.com/rss/search?q=site:economictimes.indiatimes.com/wealth&hl=en-IN&gl=IN&ceid=IN:en' },
+	{ id: 'mf-news',      name: 'MF / PF',            color: '#3fb950', url: 'https://news.google.com/rss/search?q=india+("mutual+fund"+OR+SIP+OR+NFO+OR+EPF+OR+PPF+OR+"income+tax"+OR+"home+loan")&hl=en-IN&gl=IN&ceid=IN:en' }
 ];
 
 function parseRSSServer(xml, feed) {
