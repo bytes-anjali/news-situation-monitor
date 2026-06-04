@@ -66,7 +66,10 @@ export function scoreRelevance(headline: string): number {
 const MF_TERMS = [
 	'mutual fund', 'sip', ' nav ', 'elss', 'amc', 'amfi', 'fund house',
 	'liquid fund', 'debt fund', 'hybrid fund', 'flexi cap', 'multi cap',
-	'exit load', 'expense ratio', 'direct plan', 'regular plan', 'folio'
+	'exit load', 'expense ratio', 'direct plan', 'regular plan', 'folio',
+	'nfo', 'index fund', 'small cap fund', 'large cap fund', 'mid cap fund',
+	'multi asset', 'balanced advantage', 'fund manager', 'gilt fund',
+	'arbitrage fund', 'target maturity', 'systematic investment', 'lumpsum', 'lump sum'
 ];
 
 const PF_TERMS = [
@@ -75,7 +78,15 @@ const PF_TERMS = [
 	'gst', 'home loan', 'credit card', ' emi ', 'personal loan',
 	'retirement', 'pension', 'life insurance', 'health insurance', 'term plan',
 	'savings account', 'inflation', 'repo rate', 'gold price', 'silver price',
-	'rupee', 'forex', 'rbi policy'
+	'rupee', 'forex', 'rbi policy',
+	// Monetary policy — headlines like "RBI cuts rates" or "MPC holds rate"
+	' rbi ', 'rate cut', 'rate hike', 'interest rate', 'monetary policy', ' mpc ',
+	// Budget & tax
+	'union budget', 'budget 2025', 'budget 2026', 'finance minister', 'direct tax',
+	'tax planning', 'advance tax', 'form 16', 'tax return',
+	// Wealth & credit
+	'credit score', 'cibil', 'wealth management', 'financial planning',
+	'demat account', 'savings rate'
 ];
 
 const STOCKS_TERMS = [
