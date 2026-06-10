@@ -27,7 +27,7 @@ export interface NewsSource {
 	color: string;
 }
 
-export type NewsCategory = 'stocks' | 'mutual-funds' | 'personal-finance' | 'other' | 'regulatory' | 'corp-action' | 'market-data';
+export type NewsCategory = 'stocks' | 'mutual-funds' | 'personal-finance' | 'economics' | 'other' | 'regulatory' | 'corp-action' | 'market-data';
 
 export interface NewsCard {
 	id: string;
