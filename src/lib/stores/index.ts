@@ -11,13 +11,18 @@ export {
 } from './markets';
 
 export {
+	stocksNews,
+	mfNews,
+	pfNews,
+	economicsNews,
 	news,
 	isNewsLoading,
 	allNewsItems,
 	isLoading,
 	hasErrors,
 	alerts,
-	type NewsState
+	type NewsState,
+	type CategoryNewsState
 } from './news';
 
 export { data } from './data';
