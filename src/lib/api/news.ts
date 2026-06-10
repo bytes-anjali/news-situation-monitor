@@ -178,11 +178,11 @@ export async function fetchCategoryNews(category: NewsCategory): Promise<NewsCar
 			});
 			if (res.ok) {
 				const { items } = await res.json();
-				if (Array.isArray(items) && items.length > 0) {
-					return deduplicateAndGroup(items as RawItem[], category);
-				}
+				// Trust the server response even if empty — avoids falling through
+				// to CORS proxies which break when rate-limited
+				return deduplicateAndGroup((Array.isArray(items) ? items : []) as RawItem[], category);
 			}
-		} catch { /* fall through to client-side proxies */ }
+		} catch { /* fall through to client-side proxies only if server unreachable */ }
 	}
 
 	// Fallback: browser-side CORS proxy

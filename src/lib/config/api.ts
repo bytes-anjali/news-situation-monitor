@@ -58,7 +58,12 @@ export function fetchWithProxy(url: string): Promise<Response> {
 }
 
 export function fetchWithMarketProxy(url: string): Promise<Response> {
-	return tryProxies(url, MARKET_PROXIES);
+	const apiBase = (import.meta.env?.VITE_API_URL ?? '').replace(/\/$/, '');
+	// Prepend Express /rss-proxy as the first option — server-side, no CORS
+	const proxies = apiBase
+		? [`${apiBase}/rss-proxy?url=`, ...MARKET_PROXIES]
+		: MARKET_PROXIES;
+	return tryProxies(url, proxies);
 }
 
 export const API_DELAYS = {
