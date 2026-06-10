@@ -10,6 +10,7 @@ interface RawItem {
 	feedId: string;
 	feedName: string;
 	feedColor: string;
+	forceCategory?: string;
 }
 
 function cleanTitle(raw: string): string {
@@ -17,7 +18,7 @@ function cleanTitle(raw: string): string {
 	return raw.replace(/\s+-\s+[^-]+$/, '').trim();
 }
 
-function parseRSS(xmlText: string, feedId: string, feedName: string, feedColor: string): RawItem[] {
+function parseRSS(xmlText: string, feedId: string, feedName: string, feedColor: string, forceCategory?: string): RawItem[] {
 	if (typeof DOMParser === 'undefined') return [];
 
 	let doc: Document;
@@ -52,7 +53,7 @@ function parseRSS(xmlText: string, feedId: string, feedName: string, feedColor: 
 				item.querySelector('updated')?.textContent?.trim() ||
 				'';
 
-			return { title, link, pubDate, feedId, feedName, feedColor };
+			return { title, link, pubDate, feedId, feedName, feedColor, forceCategory };
 		})
 		.filter((item) => item.title.length > 0 && item.link.length > 0);
 }
@@ -105,12 +106,17 @@ function sharedEntities(a: Set<string>, b: Set<string>): number {
 	return count;
 }
 
+const FORCE_CATEGORY_MAP = Object.fromEntries(
+	INDIAN_NEWS_FEEDS.filter((f) => f.forceCategory).map((f) => [f.id, f.forceCategory!])
+);
+
 function deduplicateAndGroup(items: RawItem[]): NewsCard[] {
 	type Group = {
 		headline: string;
 		tokens: Set<string>;
 		sources: Map<string, NewsSource>;
 		timestamp: Date;
+		forceCategory?: string;
 	};
 
 	const groups: Group[] = [];
@@ -154,13 +160,15 @@ function deduplicateAndGroup(items: RawItem[]): NewsCard[] {
 		}
 
 		if (!matched) {
+			const fc = item.forceCategory ?? FORCE_CATEGORY_MAP[item.feedId];
 			groups.push({
 				headline: item.title,
 				tokens,
 				sources: new Map([
 					[item.feedId, { feedId: item.feedId, name: item.feedName, url: item.link, color: item.feedColor }]
 				]),
-				timestamp: ts
+				timestamp: ts,
+				forceCategory: fc
 			});
 		}
 	}
@@ -173,11 +181,11 @@ function deduplicateAndGroup(items: RawItem[]): NewsCard[] {
 	});
 
 	return scored
-		.filter((x) => x.score >= MIN_SCORE)
+		.filter((x) => x.g.forceCategory || x.score >= MIN_SCORE)
 		.sort((a, b) => b.score - a.score || b.g.timestamp.getTime() - a.g.timestamp.getTime())
 		.slice(0, MAX_CARDS)
 		.map((x, i) => {
-			const category = classifyCategory(x.g.headline);
+			const category = (x.g.forceCategory as import('$lib/types').NewsCategory | undefined) ?? classifyCategory(x.g.headline);
 			return {
 				id: `card-${i}-${x.g.timestamp.getTime()}`,
 				headline: x.g.headline,
@@ -210,7 +218,7 @@ export async function fetchIndianNews(): Promise<NewsCard[]> {
 		INDIAN_NEWS_FEEDS.map(async (feed) => {
 			const response = await fetchWithProxy(feed.url);
 			const text = await response.text();
-			return parseRSS(text, feed.id, feed.name, feed.color);
+			return parseRSS(text, feed.id, feed.name, feed.color, feed.forceCategory);
 		})
 	);
 

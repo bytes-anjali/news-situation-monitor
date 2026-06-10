@@ -24,14 +24,16 @@
 		{ id: 'stocks', label: 'Stocks' },
 		{ id: 'mutual-funds', label: 'Mutual Funds' },
 		{ id: 'personal-finance', label: 'Personal Finance' },
+		{ id: 'economics', label: 'Economics' },
 		{ id: 'other', label: 'Other' },
 		{ id: 'data-feeds', label: 'Trends & Data' }
 	];
 
 	const CAT_COLORS: Record<string, string> = {
 		stocks: '#58a6ff',
-		'mutual-funds': '#3fb950',
+		'mutual-funds': '#00bcd4',
 		'personal-finance': '#d29922',
+		economics: '#ff1744',
 		other: '#8b949e',
 		regulatory: '#e91e63',
 		'corp-action': '#ff9800',
@@ -42,6 +44,7 @@
 		stocks: 'Stocks',
 		'mutual-funds': 'Mutual Funds',
 		'personal-finance': 'Personal Finance',
+		economics: 'Economics',
 		other: 'Other',
 		regulatory: 'Regulatory',
 		'corp-action': 'Corp Action',

@@ -104,14 +104,19 @@ app.get('/health', (_, res) => res.json({ ok: true }));
 // ── Server-side RSS news fetching ────────────────────────────────────────────
 
 const NEWS_FEEDS_SERVER = [
-	{ id: 'et-markets',   name: 'ET Markets',        color: '#ff6b2b', url: 'https://economictimes.indiatimes.com/markets/rss.cms' },
-	{ id: 'et',           name: 'Economic Times',     color: '#ff9800', url: 'https://economictimes.indiatimes.com/rssfeedsdefault.cms' },
-	{ id: 'mint',         name: 'Mint',               color: '#4caf50', url: 'https://news.google.com/rss/search?q=site:livemint.com+finance+OR+market+OR+stock&hl=en-IN&gl=IN&ceid=IN:en' },
-	{ id: 'bs',           name: 'Business Standard',  color: '#4488ff', url: 'https://news.google.com/rss/search?q=site:business-standard.com+market+OR+stock+OR+finance&hl=en-IN&gl=IN&ceid=IN:en' },
-	{ id: 'moneycontrol', name: 'MoneyControl',       color: '#9c27b0', url: 'https://news.google.com/rss/search?q=site:moneycontrol.com+stock+OR+market+OR+nifty&hl=en-IN&gl=IN&ceid=IN:en' },
-	{ id: 'ndtv-profit',  name: 'NDTV Profit',        color: '#e91e63', url: 'https://news.google.com/rss/search?q=site:ndtvprofit.com+stock+OR+market+OR+sensex&hl=en-IN&gl=IN&ceid=IN:en' },
-	{ id: 'et-wealth',    name: 'ET Wealth',          color: '#00897b', url: 'https://news.google.com/rss/search?q=site:economictimes.indiatimes.com/wealth&hl=en-IN&gl=IN&ceid=IN:en' },
-	{ id: 'mf-news',      name: 'MF / PF',            color: '#3fb950', url: 'https://news.google.com/rss/search?q=india+("mutual+fund"+OR+SIP+OR+NFO+OR+EPF+OR+PPF+OR+"income+tax"+OR+"home+loan")&hl=en-IN&gl=IN&ceid=IN:en' }
+	// Stocks
+	{ id: 'et-markets',   name: 'ET Markets',          color: '#ff6b2b', url: 'https://economictimes.indiatimes.com/markets/rss.cms' },
+	{ id: 'moneycontrol', name: 'MoneyControl',         color: '#9c27b0', url: 'https://news.google.com/rss/search?q=site:moneycontrol.com+stock+OR+market+OR+nifty+OR+sensex&hl=en-IN&gl=IN&ceid=IN:en' },
+	{ id: 'ndtv-profit',  name: 'NDTV Profit',          color: '#e91e63', url: 'https://news.google.com/rss/search?q=site:ndtvprofit.com+stock+OR+market+OR+sensex+OR+nifty&hl=en-IN&gl=IN&ceid=IN:en' },
+	{ id: 'bs-markets',   name: 'Business Standard',    color: '#4488ff', url: 'https://news.google.com/rss/search?q=site:business-standard.com+(market+OR+nifty+OR+sensex+OR+ipo+OR+results)&hl=en-IN&gl=IN&ceid=IN:en' },
+	// Mutual Funds
+	{ id: 'cafemutual',   name: 'Cafe Mutual',          color: '#00bcd4', url: 'https://news.google.com/rss/search?q=site:cafemutual.com&hl=en-IN&gl=IN&ceid=IN:en',                                                         forceCategory: 'mutual-funds' },
+	// Personal Finance
+	{ id: 'mint-money',   name: 'Mint Money',           color: '#4caf50', url: 'https://news.google.com/rss/search?q=site:livemint.com/money&hl=en-IN&gl=IN&ceid=IN:en',                                                     forceCategory: 'personal-finance' },
+	{ id: 'et-wealth',    name: 'ET Wealth',            color: '#ff9800', url: 'https://news.google.com/rss/search?q=site:economictimes.indiatimes.com/wealth&hl=en-IN&gl=IN&ceid=IN:en',                                    forceCategory: 'personal-finance' },
+	{ id: 'bs-pf',        name: 'BS Personal Finance',  color: '#607d8b', url: 'https://news.google.com/rss/search?q=site:business-standard.com/personal-finance&hl=en-IN&gl=IN&ceid=IN:en',                                forceCategory: 'personal-finance' },
+	// Economics
+	{ id: 'ft',           name: 'FT',                   color: '#ff1744', url: 'https://news.google.com/rss/search?q=site:ft.com+(india+OR+economy+OR+inflation+OR+fed+OR+rbi+OR+markets+OR+gdp)&hl=en-IN&gl=IN&ceid=IN:en', forceCategory: 'economics' }
 ];
 
 function parseRSSServer(xml, feed) {
@@ -126,7 +131,7 @@ function parseRSSServer(xml, feed) {
 			(/<link[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/link>/i.exec(body) || [])[1]?.trim() ||
 			(/<guid[^>]*>([\s\S]*?)<\/guid>/i.exec(body) || [])[1]?.trim() || '';
 		const pubDate = (/<pubDate[^>]*>([\s\S]*?)<\/pubDate>/i.exec(body) || [])[1]?.trim() || '';
-		if (title && link) items.push({ title, link, pubDate, feedId: feed.id, feedName: feed.name, feedColor: feed.color });
+		if (title && link) items.push({ title, link, pubDate, feedId: feed.id, feedName: feed.name, feedColor: feed.color, forceCategory: feed.forceCategory ?? null });
 	}
 	return items;
 }

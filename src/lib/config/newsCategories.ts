@@ -1,4 +1,4 @@
-export type NewsCategory = 'stocks' | 'mutual-funds' | 'personal-finance' | 'other';
+export type NewsCategory = 'stocks' | 'mutual-funds' | 'personal-finance' | 'economics' | 'other' | 'regulatory' | 'corp-action' | 'market-data';
 
 export const MAX_CARDS = 30;
 export const MIN_SCORE = 4;
@@ -172,6 +172,11 @@ export function generateAngle(headline: string, category: NewsCategory): string 
 		if (isInsurance) return '📹 "Insurance decoded" — Help viewers know if they\'re under-covered and what to buy.';
 		if (isGold) return '📹 "Gold vs Mutual Fund" — Use this news to settle the debate your viewers keep asking about.';
 		return '📹 "Your money, explained" — Turn this into a practical personal finance tip viewers can act on today.';
+	}
+	if (category === 'economics') {
+		if (isInflation) return '📹 "What inflation means for your wallet" — Connect the global numbers to Indian savings, EMIs, and returns.';
+		if (isRBI) return '📹 "Central bank watch" — Break down the policy move and what it signals for India\'s economy and your investments.';
+		return '📹 "Global economy, Indian impact" — Decode this development and explain who wins or loses in India.';
 	}
 	return '📹 "Business angle" — Find the investor story: who wins, who loses, what your viewers should watch.';
 }
