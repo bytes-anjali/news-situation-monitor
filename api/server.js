@@ -106,9 +106,9 @@ app.get('/health', (_, res) => res.json({ ok: true }));
 const NEWS_FEEDS_BY_CATEGORY = {
 	stocks: [
 		{ id: 'et-markets',   name: 'ET Markets',         color: '#ff6b2b', url: 'https://economictimes.indiatimes.com/markets/rss.cms' },
-		{ id: 'moneycontrol', name: 'MoneyControl',        color: '#9c27b0', url: 'https://news.google.com/rss/search?q=site:moneycontrol.com+stock+OR+market+OR+nifty+OR+sensex&hl=en-IN&gl=IN&ceid=IN:en' },
-		{ id: 'ndtv-profit',  name: 'NDTV Profit',         color: '#e91e63', url: 'https://news.google.com/rss/search?q=site:ndtvprofit.com+stock+OR+market+OR+sensex+OR+nifty&hl=en-IN&gl=IN&ceid=IN:en' },
-		{ id: 'bs-markets',   name: 'Business Standard',   color: '#4488ff', url: 'https://news.google.com/rss/search?q=site:business-standard.com+(market+OR+nifty+OR+sensex+OR+ipo+OR+results)&hl=en-IN&gl=IN&ceid=IN:en' }
+		{ id: 'gn-nifty',     name: 'Market News',        color: '#9c27b0', url: 'https://news.google.com/rss/search?q=nifty+OR+sensex+OR+ipo+india+stock&hl=en-IN&gl=IN&ceid=IN:en' },
+		{ id: 'gn-results',   name: 'Earnings',           color: '#4488ff', url: 'https://news.google.com/rss/search?q=india+(quarterly+results+OR+"net+profit"+OR+earnings+OR+ipo+listing+OR+dividend)&hl=en-IN&gl=IN&ceid=IN:en' },
+		{ id: 'gn-sebi-fii',  name: 'SEBI / FII',         color: '#e91e63', url: 'https://news.google.com/rss/search?q=india+(sebi+OR+fii+OR+dii+OR+"bulk+deal"+OR+"block+deal"+OR+ipo+allotment)&hl=en-IN&gl=IN&ceid=IN:en' }
 	],
 	'mutual-funds': [
 		{ id: 'cafemutual',   name: 'Cafe Mutual',         color: '#00bcd4', url: 'https://news.google.com/rss/search?q=site:cafemutual.com&hl=en-IN&gl=IN&ceid=IN:en', forceCategory: 'mutual-funds' }
@@ -176,8 +176,13 @@ app.get('/news', async (req, res) => {
 	if (items.length > 0) {
 		cache.items = items;
 		cache.fetchedAt = Date.now();
+		res.json({ items, cached: false });
+	} else if (cache.items.length > 0) {
+		// Fresh fetch returned nothing — serve stale cache rather than empty
+		res.json({ items: cache.items, cached: true, stale: true });
+	} else {
+		res.json({ items: [], cached: false });
 	}
-	res.json({ items, cached: false });
 });
 
 // RSS proxy — fetches any RSS/XML feed server-side, bypassing browser CORS restrictions

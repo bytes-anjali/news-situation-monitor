@@ -17,22 +17,22 @@ export const INDIAN_NEWS_FEEDS: NewsFeed[] = [
 		color: '#ff6b2b'
 	},
 	{
-		id: 'moneycontrol',
-		name: 'MoneyControl',
-		url: 'https://news.google.com/rss/search?q=site:moneycontrol.com+stock+OR+market+OR+nifty+OR+sensex&hl=en-IN&gl=IN&ceid=IN:en',
+		id: 'gn-nifty',
+		name: 'Market News',
+		url: 'https://news.google.com/rss/search?q=nifty+OR+sensex+OR+ipo+india+stock&hl=en-IN&gl=IN&ceid=IN:en',
 		color: '#9c27b0'
 	},
 	{
-		id: 'ndtv-profit',
-		name: 'NDTV Profit',
-		url: 'https://news.google.com/rss/search?q=site:ndtvprofit.com+stock+OR+market+OR+sensex+OR+nifty&hl=en-IN&gl=IN&ceid=IN:en',
-		color: '#e91e63'
+		id: 'gn-results',
+		name: 'Earnings',
+		url: 'https://news.google.com/rss/search?q=india+(quarterly+results+OR+"net+profit"+OR+earnings+OR+ipo+listing+OR+dividend)&hl=en-IN&gl=IN&ceid=IN:en',
+		color: '#4488ff'
 	},
 	{
-		id: 'bs-markets',
-		name: 'Business Standard',
-		url: 'https://news.google.com/rss/search?q=site:business-standard.com+(market+OR+nifty+OR+sensex+OR+ipo+OR+results)&hl=en-IN&gl=IN&ceid=IN:en',
-		color: '#4488ff'
+		id: 'gn-sebi-fii',
+		name: 'SEBI / FII',
+		url: 'https://news.google.com/rss/search?q=india+(sebi+OR+fii+OR+dii+OR+"bulk+deal"+OR+"block+deal"+OR+ipo+allotment)&hl=en-IN&gl=IN&ceid=IN:en',
+		color: '#e91e63'
 	},
 	// ── Mutual Funds ─────────────────────────────────────────────────────────────
 	{
