@@ -1,55 +1,84 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import Panel from '$lib/components/common/Panel.svelte';
-	import { news, data } from '$lib/stores';
+	import { stocksNews, mfNews, pfNews, economicsNews, data } from '$lib/stores';
 	import { INDIAN_NEWS_FEEDS } from '$lib/config/feeds';
 	import { DATA_FEEDS } from '$lib/api/dataFeeds';
 	import { fetchSummary, isSummaryEnabled, type ArticleSummary } from '$lib/api/summarize';
 	import type { TrendItem } from '$lib/api/trends';
-	import type { NewsCategory } from '$lib/types';
+	import type { NewsCard } from '$lib/types';
 
 	interface Props {
-		onRefresh?: () => void;
+		onRefreshStocks?: () => void;
+		onRefreshMF?: () => void;
+		onRefreshPF?: () => void;
+		onRefreshEconomics?: () => void;
 		onRefreshData?: () => void;
 		trends?: TrendItem[];
 	}
 
-	let { onRefresh, onRefreshData, trends = [] }: Props = $props();
+	let {
+		onRefreshStocks,
+		onRefreshMF,
+		onRefreshPF,
+		onRefreshEconomics,
+		onRefreshData,
+		trends = []
+	}: Props = $props();
 
-	type Tab = 'all' | NewsCategory | 'data-feeds';
-	let activeTab = $state<Tab>('all');
+	type Tab = 'stocks' | 'mutual-funds' | 'personal-finance' | 'economics' | 'data-feeds';
+	let activeTab = $state<Tab>('stocks');
 
-	const TABS: { id: Tab; label: string }[] = [
-		{ id: 'all', label: 'All' },
-		{ id: 'stocks', label: 'Stocks' },
-		{ id: 'mutual-funds', label: 'Mutual Funds' },
-		{ id: 'personal-finance', label: 'Personal Finance' },
-		{ id: 'economics', label: 'Economics' },
-		{ id: 'other', label: 'Other' },
-		{ id: 'data-feeds', label: 'Trends & Data' }
+	const TABS: { id: Tab; label: string; color: string }[] = [
+		{ id: 'stocks',           label: 'Stocks',           color: '#58a6ff' },
+		{ id: 'mutual-funds',     label: 'Mutual Funds',     color: '#00bcd4' },
+		{ id: 'personal-finance', label: 'Personal Finance', color: '#d29922' },
+		{ id: 'economics',        label: 'Economics',        color: '#ff1744' },
+		{ id: 'data-feeds',       label: 'Trends & Data',    color: '#8b949e' }
 	];
 
 	const CAT_COLORS: Record<string, string> = {
-		stocks: '#58a6ff',
-		'mutual-funds': '#00bcd4',
+		stocks:             '#58a6ff',
+		'mutual-funds':     '#00bcd4',
 		'personal-finance': '#d29922',
-		economics: '#ff1744',
-		other: '#8b949e',
-		regulatory: '#e91e63',
-		'corp-action': '#ff9800',
-		'market-data': '#ffd600'
+		economics:          '#ff1744',
+		other:              '#8b949e',
+		regulatory:         '#7c4dff',
+		'corp-action':      '#ff9800',
+		'market-data':      '#ffd600'
 	};
 
 	const CAT_LABELS: Record<string, string> = {
-		stocks: 'Stocks',
-		'mutual-funds': 'Mutual Funds',
+		stocks:             'Stocks',
+		'mutual-funds':     'Mutual Funds',
 		'personal-finance': 'Personal Finance',
-		economics: 'Economics',
-		other: 'Other',
-		regulatory: 'Regulatory',
-		'corp-action': 'Corp Action',
-		'market-data': 'Market Data'
+		economics:          'Economics',
+		other:              'Other',
+		regulatory:         'Regulatory',
+		'corp-action':      'Corp Action',
+		'market-data':      'Market Data'
 	};
+
+	// Active tab state (cards, loading, error, lastUpdated, refresh callback)
+	const activeState = $derived.by(() => {
+		switch (activeTab) {
+			case 'stocks':           return { store: $stocksNews,    onRefresh: onRefreshStocks };
+			case 'mutual-funds':     return { store: $mfNews,        onRefresh: onRefreshMF };
+			case 'personal-finance': return { store: $pfNews,        onRefresh: onRefreshPF };
+			case 'economics':        return { store: $economicsNews, onRefresh: onRefreshEconomics };
+			case 'data-feeds':       return { store: $data,          onRefresh: onRefreshData };
+		}
+	});
+
+	function tabCount(id: Tab): number {
+		switch (id) {
+			case 'stocks':           return $stocksNews.cards.length;
+			case 'mutual-funds':     return $mfNews.cards.length;
+			case 'personal-finance': return $pfNews.cards.length;
+			case 'economics':        return $economicsNews.cards.length;
+			case 'data-feeds':       return $data.cards.length;
+		}
+	}
 
 	function relativeTime(date: Date): string {
 		const diff = Date.now() - date.getTime();
@@ -62,39 +91,27 @@
 	}
 
 	const feedColors = Object.fromEntries(INDIAN_NEWS_FEEDS.map((f) => [f.id, f.color]));
+	const dataFeedColors = Object.fromEntries(DATA_FEEDS.map((f) => [f.id, f.color]));
 
 	function getMatchingTrend(headline: string): TrendItem | null {
 		if (trends.length === 0) return null;
 		const lower = headline.toLowerCase();
 		for (const trend of trends) {
-			const words = trend.title
-				.toLowerCase()
-				.replace(/[^\w\s]/g, '')
-				.split(/\s+/)
-				.filter((w) => w.length > 3);
+			const words = trend.title.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter((w) => w.length > 3);
 			if (words.some((w) => lower.includes(w))) return trend;
 		}
 		return null;
 	}
 
-	const filteredCards = $derived.by(() => {
-		if (activeTab === 'data-feeds') return $data.cards;
-		const cards =
-			activeTab === 'all' ? $news.cards : $news.cards.filter((c) => c.category === activeTab);
+	const filteredCards = $derived.by((): NewsCard[] => {
+		const cards = activeState.store.cards as NewsCard[];
+		if (activeTab === 'data-feeds') return cards;
 		const trending = cards.filter((c) => getMatchingTrend(c.headline) !== null);
-		const regular = cards.filter((c) => getMatchingTrend(c.headline) === null);
+		const regular  = cards.filter((c) => getMatchingTrend(c.headline) === null);
 		return [...trending, ...regular];
 	});
 
-	function tabCount(id: Tab): number {
-		if (id === 'data-feeds') return $data.cards.length;
-		if (id === 'all') return $news.cards.length;
-		return $news.cards.filter((c) => c.category === id).length;
-	}
-
-	const dataFeedColors = Object.fromEntries(DATA_FEEDS.map((f) => [f.id, f.color]));
-
-	// ── AI Summaries ────────────────────────────────────────────────────────────
+	// ── AI Summaries ─────────────────────────────────────────────────────────────
 	type SumState =
 		| { s: 'idle' }
 		| { s: 'loading' }
@@ -113,7 +130,7 @@
 			.catch((e: Error) => { sums[url] = { s: 'error', msg: e.message ?? 'Failed' }; });
 	}
 
-	// ── Script Generation ────────────────────────────────────────────────────────
+	// ── Script Generation ─────────────────────────────────────────────────────────
 	const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
 	type ScriptState =
@@ -129,11 +146,8 @@
 		scripts[cardId] = { s: 'loading' };
 		const params = new URLSearchParams({ headline, summary, category, urls: sourceUrls.join(',') });
 		fetch(`${API_BASE}/script?${params}`, { signal: AbortSignal.timeout(30000) })
-			.then((r) => {
-				if (!r.ok) throw new Error(`script: ${r.status}`);
-				return r.json();
-			})
-			.then((data) => { scripts[cardId] = { s: 'done', script: data.script, copied: false }; })
+			.then((r) => { if (!r.ok) throw new Error(`script: ${r.status}`); return r.json(); })
+			.then((d) => { scripts[cardId] = { s: 'done', script: d.script, copied: false }; })
 			.catch((e: Error) => { scripts[cardId] = { s: 'error', msg: e.message ?? 'Failed' }; });
 	}
 
@@ -146,14 +160,24 @@
 			if (cur?.s === 'done') scripts[cardId] = { ...cur, copied: false };
 		}, 2000);
 	}
+
+	// Load category on first visit if empty
+	function handleTabClick(id: Tab) {
+		activeTab = id;
+		// Auto-load on first visit
+		if (id === 'mutual-funds'     && $mfNews.cards.length === 0        && !$mfNews.loading)        onRefreshMF?.();
+		if (id === 'personal-finance' && $pfNews.cards.length === 0        && !$pfNews.loading)        onRefreshPF?.();
+		if (id === 'economics'        && $economicsNews.cards.length === 0 && !$economicsNews.loading) onRefreshEconomics?.();
+		if (id === 'data-feeds'       && $data.cards.length === 0          && !$data.loading)          onRefreshData?.();
+	}
 </script>
 
 <Panel
 	id="news"
 	title="Content Spotting"
-	count={$news.cards.length}
-	loading={$news.loading}
-	error={$news.error}
+	count={activeState.store.cards.length}
+	loading={activeState.store.loading}
+	error={activeState.store.error}
 >
 	{#snippet header()}
 		<div class="feed-legend">
@@ -163,7 +187,7 @@
 		</div>
 	{/snippet}
 
-	{#if trends.length > 0}
+	{#if trends.length > 0 && activeTab === 'stocks'}
 		<div class="trends-bar">
 			<span class="trends-label">🔥 Trending</span>
 			{#each trends as t}
@@ -175,25 +199,29 @@
 	<div class="tabs">
 		<div class="tab-list">
 			{#each TABS as tab}
-				<button class="tab" class:active={activeTab === tab.id} onclick={() => (activeTab = tab.id)}>
+				{@const count = tabCount(tab.id)}
+				<button
+					class="tab"
+					class:active={activeTab === tab.id}
+					style="--tab-color:{tab.color}"
+					onclick={() => handleTabClick(tab.id)}
+				>
 					{tab.label}
-					{#if tabCount(tab.id) > 0}
-						<span class="tab-count">{tabCount(tab.id)}</span>
+					{#if count > 0}
+						<span class="tab-count">{count}</span>
 					{/if}
 				</button>
 			{/each}
 		</div>
 		<div class="tab-actions">
-			{#if activeTab === 'data-feeds' && $data.lastUpdated}
-				<span class="tab-updated">{relativeTime(new Date($data.lastUpdated))}</span>
-			{:else if activeTab !== 'data-feeds' && $news.lastUpdated}
-				<span class="tab-updated">{relativeTime(new Date($news.lastUpdated))}</span>
+			{#if activeState.store.lastUpdated}
+				<span class="tab-updated">{relativeTime(new Date(activeState.store.lastUpdated))}</span>
 			{/if}
 			<button
 				class="tab-refresh"
-				onclick={() => activeTab === 'data-feeds' ? onRefreshData?.() : onRefresh?.()}
-				disabled={activeTab === 'data-feeds' ? $data.loading : $news.loading}
-				title="Refresh {activeTab === 'data-feeds' ? 'data feeds' : 'news'}"
+				onclick={() => activeState.onRefresh?.()}
+				disabled={activeState.store.loading}
+				title="Refresh {activeTab}"
 			>↻</button>
 		</div>
 	</div>
@@ -207,10 +235,12 @@
 			<article class="card" class:trending={matchedTrend !== null}>
 				<div class="card-top">
 					<div class="card-badges">
-						<span
-							class="cat-badge"
-							style="color:{CAT_COLORS[card.category]};border-color:{CAT_COLORS[card.category]}60;background:{CAT_COLORS[card.category]}18"
-						>{CAT_LABELS[card.category]}</span>
+						{#if card.isDataCard}
+							<span
+								class="cat-badge"
+								style="color:{CAT_COLORS[card.category]};border-color:{CAT_COLORS[card.category]}60;background:{CAT_COLORS[card.category]}18"
+							>{CAT_LABELS[card.category]}</span>
+						{/if}
 						{#if matchedTrend !== null}
 							<a href={matchedTrend.shareUrl} target="_blank" rel="noopener noreferrer" class="trend-badge" title="Trending: {matchedTrend.title}">🔥 Trending</a>
 						{/if}
@@ -222,6 +252,10 @@
 					{sum?.s === 'done' ? sum.title : card.headline}
 				</p>
 
+				{#if !card.isDataCard && card.angle}
+					<p class="angle">{card.angle}</p>
+				{/if}
+
 				{#if sum?.s === 'loading'}
 					<div class="summary-shimmer"></div>
 				{:else if sum?.s === 'done'}
@@ -230,7 +264,7 @@
 					<p class="summary-error">⚠ {sum.msg}
 						<button class="inline-retry" onclick={() => getSummary(sumUrl ?? '', card.headline)}>retry</button>
 					</p>
-				{:else if isSummaryEnabled() && sumUrl}
+				{:else if isSummaryEnabled() && sumUrl && !card.isDataCard}
 					<button class="summary-btn" onclick={() => getSummary(sumUrl, card.headline)}>
 						Get AI Summary
 					</button>
@@ -245,8 +279,7 @@
 					{/each}
 				</div>
 
-				<!-- Script section -->
-				{#if API_BASE}
+				{#if API_BASE && !card.isDataCard}
 					<div class="script-row">
 						{#if !scr || scr.s === 'idle'}
 							<button
@@ -290,12 +323,14 @@
 			</article>
 		{/each}
 
-		{#if filteredCards.length === 0 && !$news.loading && !$data.loading}
+		{#if filteredCards.length === 0 && !activeState.store.loading}
 			<div class="empty">
-				{#if activeTab === 'data-feeds'}
-					{$data.cards.length === 0 ? 'Click ↻ to load regulatory & market data' : 'No data in this view'}
+				{#if activeState.store.error}
+					⚠ {activeState.store.error}
+				{:else if activeState.store.lastUpdated === null}
+					Click ↻ to load {activeTab === 'data-feeds' ? 'regulatory & market data' : TABS.find(t => t.id === activeTab)?.label ?? activeTab}
 				{:else}
-					{$news.cards.length === 0 ? 'Click ↻ to load stories' : 'No stories in this category yet'}
+					No stories found in the last 36 hours
 				{/if}
 			</div>
 		{/if}
@@ -309,9 +344,7 @@
 		gap: 0.5rem;
 		margin-top: 0.35rem;
 	}
-
 	.feed-dot { font-size: 0.6rem; }
-
 
 	.trends-bar {
 		display: flex;
@@ -324,7 +357,6 @@
 		padding: 0.4rem 0.6rem;
 		margin-bottom: 0.75rem;
 	}
-
 	.trends-label {
 		font-size: 0.6rem;
 		font-weight: 700;
@@ -332,7 +364,6 @@
 		flex-shrink: 0;
 		margin-right: 0.15rem;
 	}
-
 	.trend-chip {
 		font-size: 0.6rem;
 		color: var(--text-dim);
@@ -344,7 +375,6 @@
 		white-space: nowrap;
 		transition: border-color 0.15s, color 0.15s;
 	}
-
 	.trend-chip:hover { border-color: var(--yellow); color: var(--yellow); text-decoration: none; }
 
 	.tabs {
@@ -355,27 +385,23 @@
 		padding-bottom: 0.4rem;
 		gap: 0.5rem;
 	}
-
 	.tab-list {
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.2rem;
 		flex: 1;
 	}
-
 	.tab-actions {
 		display: flex;
 		align-items: center;
 		gap: 0.4rem;
 		flex-shrink: 0;
 	}
-
 	.tab-updated {
 		font-size: 0.58rem;
 		color: var(--text-muted);
 		white-space: nowrap;
 	}
-
 	.tab-refresh {
 		font-size: 0.75rem;
 		font-family: inherit;
@@ -392,7 +418,6 @@
 		transition: all 0.15s;
 		flex-shrink: 0;
 	}
-
 	.tab-refresh:hover:not(:disabled) { background: var(--border); color: var(--text); }
 	.tab-refresh:disabled { opacity: 0.4; cursor: not-allowed; }
 
@@ -412,10 +437,13 @@
 		transition: all 0.15s;
 		white-space: nowrap;
 	}
-
 	.tab:hover { color: var(--text-dim); border-color: var(--border); }
-	.tab.active { color: var(--text); background: var(--border); border-color: var(--border-light); }
-
+	.tab.active {
+		color: var(--tab-color, var(--accent));
+		background: color-mix(in srgb, var(--tab-color, var(--accent)) 12%, transparent);
+		border-color: color-mix(in srgb, var(--tab-color, var(--accent)) 35%, transparent);
+		font-weight: 600;
+	}
 	.tab-count {
 		font-size: 0.55rem;
 		background: var(--bg);
@@ -424,7 +452,6 @@
 		padding: 0 0.3rem;
 		color: var(--text-muted);
 	}
-
 	.tab.active .tab-count { background: var(--surface); }
 
 	.cards { display: flex; flex-direction: column; gap: 0.85rem; }
@@ -437,7 +464,6 @@
 		transition: border-color 0.15s, box-shadow 0.15s;
 		box-shadow: 0 1px 3px rgba(0,0,0,0.06);
 	}
-
 	.card:hover { border-color: var(--border-light); box-shadow: 0 2px 8px rgba(0,0,0,0.10); }
 	.card.trending { border-left: 3px solid rgba(180, 130, 20, 0.6); }
 
@@ -448,7 +474,6 @@
 		margin-bottom: 0.45rem;
 		gap: 0.5rem;
 	}
-
 	.card-badges { display: flex; align-items: center; gap: 0.3rem; flex-wrap: wrap; }
 
 	.cat-badge {
@@ -460,7 +485,6 @@
 		white-space: nowrap;
 		letter-spacing: 0.01em;
 	}
-
 	.trend-badge {
 		font-size: 0.52rem;
 		font-weight: 700;
@@ -472,7 +496,6 @@
 		text-decoration: none;
 		white-space: nowrap;
 	}
-
 	.trend-badge:hover { background: rgba(210, 153, 34, 0.18); text-decoration: none; }
 
 	.timestamp {
@@ -487,10 +510,17 @@
 		font-weight: 600;
 		color: var(--text);
 		line-height: 1.45;
-		margin: 0 0 0.5rem 0;
+		margin: 0 0 0.4rem 0;
 	}
-
 	.ai-title { font-weight: 700; }
+
+	.angle {
+		font-size: 0.7rem;
+		color: var(--accent);
+		line-height: 1.4;
+		margin: 0 0 0.5rem 0;
+		opacity: 0.85;
+	}
 
 	.summary {
 		font-size: 0.72rem;
@@ -498,14 +528,12 @@
 		line-height: 1.55;
 		margin: 0 0 0.5rem 0;
 	}
-
 	.summary-error {
 		font-size: 0.62rem;
 		color: var(--red);
 		margin: 0 0 0.5rem 0;
 		opacity: 0.7;
 	}
-
 	.summary-btn {
 		font-size: 0.6rem;
 		font-family: inherit;
@@ -518,9 +546,7 @@
 		margin-bottom: 0.5rem;
 		transition: all 0.15s;
 	}
-
 	.summary-btn:hover { border-color: var(--accent); color: var(--accent); }
-
 	.inline-retry {
 		font-size: 0.58rem;
 		font-family: inherit;
@@ -531,7 +557,6 @@
 		padding: 0;
 		text-decoration: underline;
 	}
-
 	.summary-shimmer {
 		height: 2.4rem;
 		border-radius: 3px;
@@ -540,7 +565,6 @@
 		background-size: 200% 100%;
 		animation: shimmer 1.4s infinite;
 	}
-
 	@keyframes shimmer {
 		0%   { background-position: -200% 0; }
 		100% { background-position:  200% 0; }
@@ -552,7 +576,6 @@
 		gap: 0.4rem;
 		margin-bottom: 0.5rem;
 	}
-
 	.source-chip {
 		display: inline-flex;
 		align-items: center;
@@ -567,18 +590,15 @@
 		text-decoration: none;
 		transition: background 0.12s;
 	}
-
 	.source-chip:hover { background: color-mix(in srgb, var(--chip-color) 20%, transparent); text-decoration: none; }
 	.dot { font-size: 0.4rem; }
 
-	/* ── Script ── */
 	.script-row {
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
 		margin-top: 0.25rem;
 	}
-
 	.script-btn {
 		font-size: 0.62rem;
 		font-family: inherit;
@@ -591,24 +611,17 @@
 		cursor: pointer;
 		transition: all 0.15s;
 	}
-
-	.script-btn:hover {
-		background: var(--accent);
-		color: var(--bg);
-	}
-
+	.script-btn:hover { background: var(--accent); color: var(--bg); }
 	.script-generating {
 		font-size: 0.6rem;
 		color: var(--text-muted);
 		font-style: italic;
 	}
-
 	.script-error {
 		font-size: 0.6rem;
 		color: var(--red);
 		opacity: 0.8;
 	}
-
 	.script-box {
 		margin-top: 0.65rem;
 		background: var(--bg);
@@ -616,7 +629,6 @@
 		border-radius: 5px;
 		overflow: hidden;
 	}
-
 	.script-header {
 		display: flex;
 		align-items: center;
@@ -624,7 +636,6 @@
 		padding: 0.4rem 0.7rem;
 		border-bottom: 1px solid var(--border);
 	}
-
 	.script-label {
 		font-size: 0.55rem;
 		font-weight: 700;
@@ -632,7 +643,6 @@
 		letter-spacing: 0.06em;
 		color: var(--text-muted);
 	}
-
 	.copy-btn {
 		font-size: 0.58rem;
 		font-family: inherit;
@@ -645,10 +655,8 @@
 		cursor: pointer;
 		transition: all 0.15s;
 	}
-
 	.copy-btn:hover { background: var(--border); color: var(--text); }
 	.copy-btn.copied { border-color: var(--green); color: var(--green); }
-
 	.script-text {
 		font-size: 0.78rem;
 		line-height: 1.75;

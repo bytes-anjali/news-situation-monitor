@@ -103,21 +103,28 @@ app.get('/health', (_, res) => res.json({ ok: true }));
 
 // ── Server-side RSS news fetching ────────────────────────────────────────────
 
-const NEWS_FEEDS_SERVER = [
-	// Stocks
-	{ id: 'et-markets',   name: 'ET Markets',          color: '#ff6b2b', url: 'https://economictimes.indiatimes.com/markets/rss.cms' },
-	{ id: 'moneycontrol', name: 'MoneyControl',         color: '#9c27b0', url: 'https://news.google.com/rss/search?q=site:moneycontrol.com+stock+OR+market+OR+nifty+OR+sensex&hl=en-IN&gl=IN&ceid=IN:en' },
-	{ id: 'ndtv-profit',  name: 'NDTV Profit',          color: '#e91e63', url: 'https://news.google.com/rss/search?q=site:ndtvprofit.com+stock+OR+market+OR+sensex+OR+nifty&hl=en-IN&gl=IN&ceid=IN:en' },
-	{ id: 'bs-markets',   name: 'Business Standard',    color: '#4488ff', url: 'https://news.google.com/rss/search?q=site:business-standard.com+(market+OR+nifty+OR+sensex+OR+ipo+OR+results)&hl=en-IN&gl=IN&ceid=IN:en' },
-	// Mutual Funds
-	{ id: 'cafemutual',   name: 'Cafe Mutual',          color: '#00bcd4', url: 'https://news.google.com/rss/search?q=site:cafemutual.com&hl=en-IN&gl=IN&ceid=IN:en',                                                         forceCategory: 'mutual-funds' },
-	// Personal Finance
-	{ id: 'mint-money',   name: 'Mint Money',           color: '#4caf50', url: 'https://news.google.com/rss/search?q=site:livemint.com/money&hl=en-IN&gl=IN&ceid=IN:en',                                                     forceCategory: 'personal-finance' },
-	{ id: 'et-wealth',    name: 'ET Wealth',            color: '#ff9800', url: 'https://news.google.com/rss/search?q=site:economictimes.indiatimes.com/wealth&hl=en-IN&gl=IN&ceid=IN:en',                                    forceCategory: 'personal-finance' },
-	{ id: 'bs-pf',        name: 'BS Personal Finance',  color: '#607d8b', url: 'https://news.google.com/rss/search?q=site:business-standard.com/personal-finance&hl=en-IN&gl=IN&ceid=IN:en',                                forceCategory: 'personal-finance' },
-	// Economics
-	{ id: 'ft',           name: 'FT',                   color: '#ff1744', url: 'https://news.google.com/rss/search?q=site:ft.com+(india+OR+economy+OR+inflation+OR+fed+OR+rbi+OR+markets+OR+gdp)&hl=en-IN&gl=IN&ceid=IN:en', forceCategory: 'economics' }
-];
+const NEWS_FEEDS_BY_CATEGORY = {
+	stocks: [
+		{ id: 'et-markets',   name: 'ET Markets',         color: '#ff6b2b', url: 'https://economictimes.indiatimes.com/markets/rss.cms' },
+		{ id: 'moneycontrol', name: 'MoneyControl',        color: '#9c27b0', url: 'https://news.google.com/rss/search?q=site:moneycontrol.com+stock+OR+market+OR+nifty+OR+sensex&hl=en-IN&gl=IN&ceid=IN:en' },
+		{ id: 'ndtv-profit',  name: 'NDTV Profit',         color: '#e91e63', url: 'https://news.google.com/rss/search?q=site:ndtvprofit.com+stock+OR+market+OR+sensex+OR+nifty&hl=en-IN&gl=IN&ceid=IN:en' },
+		{ id: 'bs-markets',   name: 'Business Standard',   color: '#4488ff', url: 'https://news.google.com/rss/search?q=site:business-standard.com+(market+OR+nifty+OR+sensex+OR+ipo+OR+results)&hl=en-IN&gl=IN&ceid=IN:en' }
+	],
+	'mutual-funds': [
+		{ id: 'cafemutual',   name: 'Cafe Mutual',         color: '#00bcd4', url: 'https://news.google.com/rss/search?q=site:cafemutual.com&hl=en-IN&gl=IN&ceid=IN:en', forceCategory: 'mutual-funds' }
+	],
+	'personal-finance': [
+		{ id: 'mint-money',   name: 'Mint Money',          color: '#4caf50', url: 'https://news.google.com/rss/search?q=site:livemint.com/money&hl=en-IN&gl=IN&ceid=IN:en', forceCategory: 'personal-finance' },
+		{ id: 'et-wealth',    name: 'ET Wealth',           color: '#ff9800', url: 'https://news.google.com/rss/search?q=site:economictimes.indiatimes.com/wealth&hl=en-IN&gl=IN&ceid=IN:en', forceCategory: 'personal-finance' },
+		{ id: 'bs-pf',        name: 'BS Personal Finance', color: '#607d8b', url: 'https://news.google.com/rss/search?q=site:business-standard.com/personal-finance&hl=en-IN&gl=IN&ceid=IN:en', forceCategory: 'personal-finance' }
+	],
+	economics: [
+		{ id: 'ft',           name: 'FT',                  color: '#ff1744', url: 'https://news.google.com/rss/search?q=site:ft.com+(india+OR+economy+OR+inflation+OR+fed+OR+rbi+OR+markets+OR+gdp)&hl=en-IN&gl=IN&ceid=IN:en', forceCategory: 'economics' }
+	]
+};
+
+// Flat list for any code that needs all feeds
+const NEWS_FEEDS_SERVER = Object.values(NEWS_FEEDS_BY_CATEGORY).flat();
 
 function parseRSSServer(xml, feed) {
 	const items = [];
@@ -136,15 +143,25 @@ function parseRSSServer(xml, feed) {
 	return items;
 }
 
-let newsCache = { items: [], fetchedAt: 0 };
 const NEWS_CACHE_TTL = 5 * 60 * 1000;
+const newsCacheByCategory = {
+	stocks:             { items: [], fetchedAt: 0 },
+	'mutual-funds':     { items: [], fetchedAt: 0 },
+	'personal-finance': { items: [], fetchedAt: 0 },
+	economics:          { items: [], fetchedAt: 0 }
+};
 
 app.get('/news', async (req, res) => {
-	if (Date.now() - newsCache.fetchedAt < NEWS_CACHE_TTL && newsCache.items.length > 0) {
-		return res.json({ items: newsCache.items, cached: true });
+	const category = req.query.category;
+	const feeds = NEWS_FEEDS_BY_CATEGORY[category] ?? NEWS_FEEDS_SERVER;
+	const cache = newsCacheByCategory[category] ?? newsCacheByCategory['stocks'];
+
+	if (Date.now() - cache.fetchedAt < NEWS_CACHE_TTL && cache.items.length > 0) {
+		return res.json({ items: cache.items, cached: true });
 	}
+
 	const results = await Promise.allSettled(
-		NEWS_FEEDS_SERVER.map(async (feed) => {
+		feeds.map(async (feed) => {
 			const r = await fetch(feed.url, { headers: FETCH_HEADERS, signal: AbortSignal.timeout(12000) });
 			if (!r.ok) throw new Error(`HTTP ${r.status}`);
 			const xml = await r.text();
@@ -156,7 +173,8 @@ app.get('/news', async (req, res) => {
 		if (result.status === 'fulfilled') items.push(...result.value);
 	}
 	if (items.length > 0) {
-		newsCache = { items, fetchedAt: Date.now() };
+		cache.items = items;
+		cache.fetchedAt = Date.now();
 	}
 	res.json({ items, cached: false });
 });

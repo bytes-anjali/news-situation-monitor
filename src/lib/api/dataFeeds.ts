@@ -39,25 +39,25 @@ export const DATA_FEEDS: DataFeed[] = [
 		minScore: 0
 	},
 	{
-		id: 'bse-corp',
-		name: 'BSE Corp',
-		url: 'https://news.google.com/rss/search?q=site:bseindia.com+results+OR+dividend+OR+board+meeting&hl=en-IN&gl=IN&ceid=IN:en',
+		id: 'corp-actions',
+		name: 'Corp Actions',
+		url: 'https://news.google.com/rss/search?q=india+(dividend+OR+"board+meeting"+OR+"stock+split"+OR+buyback+OR+"rights+issue"+OR+"bonus+share")+site:economictimes.indiatimes.com+OR+site:business-standard.com&hl=en-IN&gl=IN&ceid=IN:en',
 		color: '#ff9800',
 		category: 'corp-action',
-		minScore: 4
+		minScore: 0
 	},
 	{
-		id: 'nse-corp',
-		name: 'NSE Corp',
-		url: 'https://news.google.com/rss/search?q=site:nseindia.com+bulk+deal+OR+block+deal+OR+insider+trading&hl=en-IN&gl=IN&ceid=IN:en',
+		id: 'bulk-deals-news',
+		name: 'Bulk & Block Deals',
+		url: 'https://news.google.com/rss/search?q=india+("bulk+deal"+OR+"block+deal"+OR+"insider+trading"+OR+"promoter+stake")&hl=en-IN&gl=IN&ceid=IN:en',
 		color: '#ffd600',
 		category: 'market-data',
 		minScore: 0
 	},
 	{
-		id: 'amfi-news',
-		name: 'AMFI',
-		url: 'https://news.google.com/rss/search?q=site:amfiindia.com+OR+"AMFI+data"+OR+"SIP+data"+monthly&hl=en-IN&gl=IN&ceid=IN:en',
+		id: 'sip-amfi',
+		name: 'MF Data',
+		url: 'https://news.google.com/rss/search?q=india+("SIP+data"+OR+"AMFI+data"+OR+"mutual+fund+AUM"+OR+"SIP+inflows"+OR+"folio+count")&hl=en-IN&gl=IN&ceid=IN:en',
 		color: '#3fb950',
 		category: 'market-data',
 		minScore: 0

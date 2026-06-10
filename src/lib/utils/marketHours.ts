@@ -23,7 +23,7 @@ export function getMarketStatus(): MarketStatus {
 }
 
 export function getNewsRefreshInterval(): number {
-	return isMarketOpen() ? 15 * 60 * 1000 : 60 * 60 * 1000;
+	return isMarketOpen() ? 20 * 60 * 1000 : 3 * 60 * 60 * 1000;
 }
 
 export function marketStatusLabel(status: MarketStatus): string {
