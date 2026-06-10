@@ -66,17 +66,17 @@ export const INDIAN_NEWS_FEEDS: NewsFeed[] = [
 	},
 	// ── Economics ────────────────────────────────────────────────────────────────
 	{
-		id: 'reuters-economy',
-		name: 'Reuters',
-		url: 'https://news.google.com/rss/search?q=site:reuters.com+(india+OR+economy+OR+inflation+OR+fed+OR+rbi+OR+gdp+OR+recession)&hl=en-IN&gl=IN&ceid=IN:en',
+		id: 'econ-india',
+		name: 'India Economy',
+		url: 'https://news.google.com/rss/search?q=india+(gdp+OR+inflation+OR+"current+account"+OR+"fiscal+deficit"+OR+"trade+deficit"+OR+imf+OR+"world+bank"+OR+"economic+growth")&hl=en-IN&gl=IN&ceid=IN:en',
 		color: '#ff6600',
 		forceCategory: 'economics'
 	},
 	{
-		id: 'bloomberg-india',
-		name: 'Bloomberg',
-		url: 'https://news.google.com/rss/search?q=site:bloomberg.com+(india+OR+"emerging+markets"+OR+inflation+OR+fed+OR+rbi+OR+gdp)&hl=en-IN&gl=IN&ceid=IN:en',
-		color: '#1a1a2e',
+		id: 'econ-global',
+		name: 'Global Economy',
+		url: 'https://news.google.com/rss/search?q=(fed+OR+"federal+reserve"+OR+"us+economy"+OR+"global+recession"+OR+"oil+price"+OR+"dollar+index")+india&hl=en-IN&gl=IN&ceid=IN:en',
+		color: '#9c27b0',
 		forceCategory: 'economics'
 	}
 ];

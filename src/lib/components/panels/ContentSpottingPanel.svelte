@@ -176,7 +176,6 @@
 	id="news"
 	title="Content Spotting"
 	count={activeState.store.cards.length}
-	loading={activeState.store.loading}
 >
 	{#snippet header()}
 		<div class="feed-legend">
@@ -213,7 +212,9 @@
 			{/each}
 		</div>
 		<div class="tab-actions">
-			{#if activeState.store.lastUpdated}
+			{#if activeState.store.loading}
+				<span class="tab-spinner"></span>
+			{:else if activeState.store.lastUpdated}
 				<span class="tab-updated">{relativeTime(new Date(activeState.store.lastUpdated))}</span>
 			{/if}
 			<button
@@ -405,6 +406,20 @@
 		font-size: 0.58rem;
 		color: var(--text-muted);
 		white-space: nowrap;
+	}
+
+	.tab-spinner {
+		width: 10px;
+		height: 10px;
+		border: 2px solid var(--border);
+		border-top-color: var(--accent);
+		border-radius: 50%;
+		animation: spin 0.8s linear infinite;
+		flex-shrink: 0;
+	}
+
+	@keyframes spin {
+		to { transform: rotate(360deg); }
 	}
 	.tab-refresh {
 		font-size: 0.75rem;
