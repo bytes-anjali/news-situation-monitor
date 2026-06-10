@@ -180,21 +180,46 @@ function deduplicateAndGroup(items: RawItem[]): NewsCard[] {
 		return { g, sources, score: scoreRelevance(g.headline) + sourceBonus };
 	});
 
-	return scored
-		.filter((x) => x.g.forceCategory || x.score >= MIN_SCORE)
-		.sort((a, b) => b.score - a.score || b.g.timestamp.getTime() - a.g.timestamp.getTime())
-		.slice(0, MAX_CARDS)
-		.map((x, i) => {
-			const category = (x.g.forceCategory as import('$lib/types').NewsCategory | undefined) ?? classifyCategory(x.g.headline);
-			return {
-				id: `card-${i}-${x.g.timestamp.getTime()}`,
-				headline: x.g.headline,
-				sources: x.sources,
-				timestamp: x.g.timestamp,
-				category,
-				angle: generateAngle(x.g.headline, category)
-			};
-		});
+	// Per-category caps: each category gets its own pool so stocks can't crowd out MF/PF/Economics
+	const CATEGORY_CAPS: Record<string, number> = {
+		stocks: 14,
+		'mutual-funds': 7,
+		'personal-finance': 7,
+		economics: 5,
+		other: 3
+	};
+
+	const filtered = scored.filter((x) => x.g.forceCategory || x.score >= MIN_SCORE);
+
+	// Bin by resolved category
+	const byCat = new Map<string, typeof filtered>();
+	for (const x of filtered) {
+		const cat = (x.g.forceCategory ?? classifyCategory(x.g.headline)) as string;
+		if (!byCat.has(cat)) byCat.set(cat, []);
+		byCat.get(cat)!.push(x);
+	}
+
+	// Take top N per category (by score, then recency), then merge and sort by recency
+	const picked: typeof filtered = [];
+	for (const [cat, items] of byCat) {
+		const cap = CATEGORY_CAPS[cat] ?? 4;
+		items.sort((a, b) => b.score - a.score || b.g.timestamp.getTime() - a.g.timestamp.getTime());
+		picked.push(...items.slice(0, cap));
+	}
+
+	picked.sort((a, b) => b.g.timestamp.getTime() - a.g.timestamp.getTime());
+
+	return picked.slice(0, MAX_CARDS).map((x, i) => {
+		const category = (x.g.forceCategory as import('$lib/types').NewsCategory | undefined) ?? classifyCategory(x.g.headline);
+		return {
+			id: `card-${i}-${x.g.timestamp.getTime()}`,
+			headline: x.g.headline,
+			sources: x.sources,
+			timestamp: x.g.timestamp,
+			category,
+			angle: generateAngle(x.g.headline, category)
+		};
+	});
 }
 
 export async function fetchIndianNews(): Promise<NewsCard[]> {
