@@ -177,7 +177,6 @@
 	title="Content Spotting"
 	count={activeState.store.cards.length}
 	loading={activeState.store.loading}
-	error={activeState.store.error}
 >
 	{#snippet header()}
 		<div class="feed-legend">
@@ -323,11 +322,16 @@
 			</article>
 		{/each}
 
-		{#if filteredCards.length === 0 && !activeState.store.loading}
+		{#if activeState.store.error}
+			<div class="inline-error">
+				⚠ {activeState.store.error}
+				<button class="inline-retry" onclick={() => activeState.onRefresh?.()}>Try again</button>
+			</div>
+		{/if}
+
+		{#if filteredCards.length === 0 && !activeState.store.loading && !activeState.store.error}
 			<div class="empty">
-				{#if activeState.store.error}
-					⚠ {activeState.store.error}
-				{:else if activeState.store.lastUpdated === null}
+				{#if activeState.store.lastUpdated === null}
 					Click ↻ to load {activeTab === 'data-feeds' ? 'regulatory & market data' : TABS.find(t => t.id === activeTab)?.label ?? activeTab}
 				{:else}
 					No stories found in the last 36 hours
@@ -665,6 +669,19 @@
 		margin: 0;
 		white-space: pre-wrap;
 		font-family: inherit;
+	}
+
+	.inline-error {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		font-size: 0.68rem;
+		color: var(--red);
+		background: rgba(207, 34, 46, 0.07);
+		border: 1px solid rgba(207, 34, 46, 0.2);
+		border-radius: 5px;
+		padding: 0.5rem 0.75rem;
+		margin-bottom: 0.5rem;
 	}
 
 	.empty {

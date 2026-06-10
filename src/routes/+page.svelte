@@ -111,7 +111,7 @@
 	async function silentRefreshStocks() {
 		try {
 			const [cards] = await Promise.all([fetchCategoryNews('stocks'), loadTrends()]);
-			stocksNews.setCards(cards);
+			stocksNews.mergeCards(cards); // keeps articles up to 36 hrs, adds new ones
 		} catch { /* silent */ }
 	}
 

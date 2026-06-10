@@ -119,7 +119,8 @@ const NEWS_FEEDS_BY_CATEGORY = {
 		{ id: 'bs-pf',        name: 'BS Personal Finance', color: '#607d8b', url: 'https://news.google.com/rss/search?q=site:business-standard.com/personal-finance&hl=en-IN&gl=IN&ceid=IN:en', forceCategory: 'personal-finance' }
 	],
 	economics: [
-		{ id: 'ft',           name: 'FT',                  color: '#ff1744', url: 'https://news.google.com/rss/search?q=site:ft.com+(india+OR+economy+OR+inflation+OR+fed+OR+rbi+OR+markets+OR+gdp)&hl=en-IN&gl=IN&ceid=IN:en', forceCategory: 'economics' }
+		{ id: 'reuters-economy', name: 'Reuters',   color: '#ff6600',  url: 'https://news.google.com/rss/search?q=site:reuters.com+(india+OR+economy+OR+inflation+OR+fed+OR+rbi+OR+gdp+OR+recession)&hl=en-IN&gl=IN&ceid=IN:en',            forceCategory: 'economics' },
+		{ id: 'bloomberg-india', name: 'Bloomberg', color: '#1a1a2e',  url: 'https://news.google.com/rss/search?q=site:bloomberg.com+(india+OR+"emerging+markets"+OR+inflation+OR+fed+OR+rbi+OR+gdp)&hl=en-IN&gl=IN&ceid=IN:en',          forceCategory: 'economics' }
 	]
 };
 

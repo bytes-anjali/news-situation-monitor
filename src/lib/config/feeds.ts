@@ -66,10 +66,17 @@ export const INDIAN_NEWS_FEEDS: NewsFeed[] = [
 	},
 	// ── Economics ────────────────────────────────────────────────────────────────
 	{
-		id: 'ft',
-		name: 'FT',
-		url: 'https://news.google.com/rss/search?q=site:ft.com+(india+OR+economy+OR+inflation+OR+fed+OR+rbi+OR+markets+OR+gdp)&hl=en-IN&gl=IN&ceid=IN:en',
-		color: '#ff1744',
+		id: 'reuters-economy',
+		name: 'Reuters',
+		url: 'https://news.google.com/rss/search?q=site:reuters.com+(india+OR+economy+OR+inflation+OR+fed+OR+rbi+OR+gdp+OR+recession)&hl=en-IN&gl=IN&ceid=IN:en',
+		color: '#ff6600',
+		forceCategory: 'economics'
+	},
+	{
+		id: 'bloomberg-india',
+		name: 'Bloomberg',
+		url: 'https://news.google.com/rss/search?q=site:bloomberg.com+(india+OR+"emerging+markets"+OR+inflation+OR+fed+OR+rbi+OR+gdp)&hl=en-IN&gl=IN&ceid=IN:en',
+		color: '#1a1a2e',
 		forceCategory: 'economics'
 	}
 ];
