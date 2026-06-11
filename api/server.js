@@ -139,12 +139,14 @@ function parseRSSServer(xml, feed) {
 			(/<link[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/link>/i.exec(body) || [])[1]?.trim() ||
 			(/<guid[^>]*>([\s\S]*?)<\/guid>/i.exec(body) || [])[1]?.trim() || '';
 		const pubDate = (/<pubDate[^>]*>([\s\S]*?)<\/pubDate>/i.exec(body) || [])[1]?.trim() || '';
-		const sourceAttr = (/<source[^>]+url="([^"]+)"/i.exec(body) || [])[1]?.trim() || '';
+		const sourceMatch = /<source([^>]*)>([\s\S]*?)<\/source>/i.exec(body);
+		const sourceAttr = sourceMatch ? ((/url="([^"]+)"/i.exec(sourceMatch[1]) || [])[1] || '') : '';
+		const sourcePublisher = sourceMatch ? sourceMatch[2].replace(/^<!\[CDATA\[|\]\]>$/g, '').trim() : '';
 		let sourceDomain = '';
 		if (sourceAttr) {
 			try { sourceDomain = new URL(sourceAttr).hostname.replace(/^www\./, ''); } catch { sourceDomain = ''; }
 		}
-		if (title && link) items.push({ title, link, pubDate, feedId: feed.id, feedName: feed.name, feedColor: feed.color, forceCategory: feed.forceCategory ?? null, sourceDomain });
+		if (title && link) items.push({ title, link, pubDate, feedId: feed.id, feedName: feed.name, feedColor: feed.color, forceCategory: feed.forceCategory ?? null, sourceDomain, sourcePublisher });
 	}
 	return items;
 }

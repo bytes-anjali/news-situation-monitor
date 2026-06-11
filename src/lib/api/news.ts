@@ -17,7 +17,29 @@ interface RawItem {
 	feedColor: string;
 	forceCategory?: string | null;
 	sourceDomain?: string;
+	sourcePublisher?: string;
 }
+
+const SYNONYMS: Record<string, string> = {
+	// Financial results — all → 'profit'
+	earnings: 'profit', income: 'profit', revenue: 'profit',
+	turnover: 'profit', results: 'profit', result: 'profit', profits: 'profit',
+	// Time period
+	quarterly: 'quarter', q1: 'quarter', q2: 'quarter', q3: 'quarter', q4: 'quarter',
+	// Corporate actions
+	announces: 'announce', announced: 'announce', announcing: 'announce',
+	launches: 'launch', launched: 'launch',
+	approves: 'approve', approved: 'approve',
+	acquires: 'acquire', acquired: 'acquire', acquisition: 'acquire',
+	merger: 'merge', merges: 'merge', merged: 'merge',
+	raises: 'raise', raised: 'raise',
+	hikes: 'hike', hiked: 'hike',
+	invests: 'invest', invested: 'invest', investment: 'invest', investments: 'invest',
+	buybacks: 'buyback',
+	dividends: 'dividend',
+	listing: 'list', listed: 'list', lists: 'list',
+	loans: 'loan', borrowing: 'loan', borrowings: 'loan',
+};
 
 const TRUSTED_STOCK_DOMAINS = new Set([
 	'economictimes.indiatimes.com',
@@ -71,7 +93,14 @@ function parseRSS(xmlText: string, feedId: string, feedName: string, feedColor: 
 				item.querySelector('published')?.textContent?.trim() ||
 				item.querySelector('updated')?.textContent?.trim() ||
 				'';
-			return { title, link, pubDate, feedId, feedName, feedColor, forceCategory };
+			const sourceEl = item.querySelector('source');
+			const sourcePublisher = sourceEl?.textContent?.trim() || '';
+			const sourceHref = sourceEl?.getAttribute('url') || '';
+			let sourceDomain = '';
+			if (sourceHref) {
+				try { sourceDomain = new URL(sourceHref).hostname.replace(/^www\./, ''); } catch { sourceDomain = ''; }
+			}
+			return { title, link, pubDate, feedId, feedName, feedColor, forceCategory, sourceDomain, sourcePublisher };
 		})
 		.filter((item) => item.title.length > 0 && item.link.length > 0);
 }
@@ -92,6 +121,7 @@ function tokenize(text: string): Set<string> {
 	return new Set(
 		text.toLowerCase().replace(/[^\w\s]/g, ' ').split(/\s+/)
 			.filter((w) => w.length > 2 && !STOP.has(w) && !/^\d+$/.test(w))
+			.map((w) => SYNONYMS[w] ?? w)
 	);
 }
 
@@ -157,14 +187,17 @@ function _deduplicateAndGroup(items: RawItem[], category: NewsCategory): NewsCar
 			ts = new Date(now);
 		}
 
+		const sourceKey = item.sourceDomain || item.feedId;
+		const sourceName = item.sourcePublisher || item.feedName;
+
 		let matched = false;
 		for (const group of groups) {
 			const { jaccard, shared } = similarity(group.tokens, tokens);
 			const entityShared = sharedEntities(group.tokens, tokens);
 			if ((jaccard >= 0.25 && shared >= 2) || (entityShared >= 2 && shared >= 3)) {
-				if (!group.sources.has(item.feedId)) {
-					group.sources.set(item.feedId, {
-						feedId: item.feedId, name: item.feedName, url: item.link, color: item.feedColor
+				if (!group.sources.has(sourceKey)) {
+					group.sources.set(sourceKey, {
+						feedId: item.feedId, name: sourceName, url: item.link, color: item.feedColor
 					});
 				}
 				if (ts > group.timestamp) group.timestamp = ts;
@@ -179,7 +212,7 @@ function _deduplicateAndGroup(items: RawItem[], category: NewsCategory): NewsCar
 				headline: item.title,
 				tokens,
 				sources: new Map([
-					[item.feedId, { feedId: item.feedId, name: item.feedName, url: item.link, color: item.feedColor }]
+					[sourceKey, { feedId: item.feedId, name: sourceName, url: item.link, color: item.feedColor }]
 				]),
 				timestamp: ts
 			});
