@@ -105,10 +105,12 @@ app.get('/health', (_, res) => res.json({ ok: true }));
 
 const NEWS_FEEDS_BY_CATEGORY = {
 	stocks: [
-		{ id: 'et-markets',   name: 'ET Markets',         color: '#ff6b2b', url: 'https://economictimes.indiatimes.com/markets/rss.cms' },
-		{ id: 'gn-nifty',     name: 'Market News',        color: '#9c27b0', url: 'https://news.google.com/rss/search?q=nifty+OR+sensex+OR+ipo+india+stock&hl=en-IN&gl=IN&ceid=IN:en' },
-		{ id: 'gn-results',   name: 'Earnings',           color: '#4488ff', url: 'https://news.google.com/rss/search?q=india+(quarterly+results+OR+"net+profit"+OR+earnings+OR+ipo+listing+OR+dividend)&hl=en-IN&gl=IN&ceid=IN:en' },
-		{ id: 'gn-sebi-fii',  name: 'SEBI / FII',         color: '#e91e63', url: 'https://news.google.com/rss/search?q=india+(sebi+OR+fii+OR+dii+OR+"bulk+deal"+OR+"block+deal"+OR+ipo+allotment)&hl=en-IN&gl=IN&ceid=IN:en' }
+		{ id: 'et-markets',   name: 'ET Markets',       color: '#ff6b2b', url: 'https://economictimes.indiatimes.com/markets/rss.cms' },
+		{ id: 'mc-latest',    name: 'MoneyControl',      color: '#1565c0', url: 'https://www.moneycontrol.com/rss/latestnews.xml' },
+		{ id: 'bs-markets',   name: 'Business Standard', color: '#0d47a1', url: 'https://www.business-standard.com/rss/markets-106.rss' },
+		{ id: 'mint-markets', name: 'LiveMint',          color: '#2e7d32', url: 'https://www.livemint.com/rss/markets' },
+		{ id: 'ndtv-profit',  name: 'NDTV Profit',       color: '#b71c1c', url: 'https://feeds.feedburner.com/ndtvprofit-latest-news' },
+		{ id: 'fe-markets',   name: 'Financial Express', color: '#e65100', url: 'https://www.financialexpress.com/market/feed/' },
 	],
 	'mutual-funds': [
 		{ id: 'cafemutual',   name: 'Cafe Mutual',         color: '#00bcd4', url: 'https://news.google.com/rss/search?q=site:cafemutual.com&hl=en-IN&gl=IN&ceid=IN:en', forceCategory: 'mutual-funds' }

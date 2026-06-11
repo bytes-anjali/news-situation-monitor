@@ -41,49 +41,6 @@ const SYNONYMS: Record<string, string> = {
 	loans: 'loan', borrowing: 'loan', borrowings: 'loan',
 };
 
-const TRUSTED_STOCK_DOMAINS = new Set([
-	'economictimes.indiatimes.com',
-	'indiatimes.com',
-	'moneycontrol.com',
-	'business-standard.com',
-	'livemint.com',
-	'hindustantimes.com',
-	'ndtvprofit.com',
-	'ndtv.com',
-	'thehindu.com',
-	'financialexpress.com',
-	'reuters.com',
-	'bloomberg.com',
-	'bloombergquint.com',
-	'businesstoday.in',
-	'zeebiz.com',
-	'cnbctv18.com',
-	'tv18.com',
-	'thehindubusinessline.com',
-	'businessline.com',
-	'ft.com',
-	'bseindia.com',
-	'nseindia.com',
-	'sebi.gov.in',
-	'rbi.org.in',
-	'equitymaster.com',
-	'outlookmoney.com',
-	'valueresearchonline.com',
-]);
-
-// Google News search feeds — items must have a recognized source domain to be shown
-const GN_STOCK_FEED_IDS = new Set(['gn-nifty', 'gn-results', 'gn-sebi-fii']);
-
-function isTrustedStockDomain(hostname: string): boolean {
-	if (!hostname) return false;
-	if (TRUSTED_STOCK_DOMAINS.has(hostname)) return true;
-	// Walk up subdomains: m.moneycontrol.com → moneycontrol.com, profit.ndtv.com → ndtv.com
-	const parts = hostname.split('.');
-	for (let i = 1; i < parts.length - 1; i++) {
-		if (TRUSTED_STOCK_DOMAINS.has(parts.slice(i).join('.'))) return true;
-	}
-	return false;
-}
 
 function cleanTitle(raw: string): string {
 	return raw.replace(/\s+-\s+[^-]+$/, '').trim();
@@ -175,17 +132,7 @@ function deduplicateAndGroup(rawItems: RawItem[], category: NewsCategory): NewsC
 		seenLinks.add(item.link);
 		return true;
 	});
-
-	// For stocks: Google News search feeds must resolve to a trusted publisher domain.
-	// Direct feeds (et-markets) always pass — they have no sourceDomain by design.
-	const filteredItems = category === 'stocks'
-		? items.filter((item) => {
-			if (!GN_STOCK_FEED_IDS.has(item.feedId)) return true;
-			return isTrustedStockDomain(item.sourceDomain ?? '');
-		})
-		: items;
-
-	return _deduplicateAndGroup(filteredItems, category);
+	return _deduplicateAndGroup(items, category);
 }
 
 function _deduplicateAndGroup(items: RawItem[], category: NewsCategory): NewsCard[] {

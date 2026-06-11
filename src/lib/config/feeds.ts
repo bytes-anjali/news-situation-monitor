@@ -9,31 +9,13 @@ export interface NewsFeed {
 }
 
 export const INDIAN_NEWS_FEEDS: NewsFeed[] = [
-	// ── Stocks ──────────────────────────────────────────────────────────────────
-	{
-		id: 'et-markets',
-		name: 'ET Markets',
-		url: 'https://economictimes.indiatimes.com/markets/rss.cms',
-		color: '#ff6b2b'
-	},
-	{
-		id: 'gn-nifty',
-		name: 'Market News',
-		url: 'https://news.google.com/rss/search?q=nifty+OR+sensex+OR+ipo+india+stock&hl=en-IN&gl=IN&ceid=IN:en',
-		color: '#9c27b0'
-	},
-	{
-		id: 'gn-results',
-		name: 'Earnings',
-		url: 'https://news.google.com/rss/search?q=india+(quarterly+results+OR+"net+profit"+OR+earnings+OR+ipo+listing+OR+dividend)&hl=en-IN&gl=IN&ceid=IN:en',
-		color: '#4488ff'
-	},
-	{
-		id: 'gn-sebi-fii',
-		name: 'SEBI / FII',
-		url: 'https://news.google.com/rss/search?q=india+(sebi+OR+fii+OR+dii+OR+"bulk+deal"+OR+"block+deal"+OR+ipo+allotment)&hl=en-IN&gl=IN&ceid=IN:en',
-		color: '#e91e63'
-	},
+	// ── Stocks (direct RSS — no Google News intermediary) ────────────────────────
+	{ id: 'et-markets',   name: 'ET Markets',       url: 'https://economictimes.indiatimes.com/markets/rss.cms',             color: '#ff6b2b' },
+	{ id: 'mc-latest',    name: 'MoneyControl',      url: 'https://www.moneycontrol.com/rss/latestnews.xml',                  color: '#1565c0' },
+	{ id: 'bs-markets',   name: 'Business Standard', url: 'https://www.business-standard.com/rss/markets-106.rss',            color: '#0d47a1' },
+	{ id: 'mint-markets', name: 'LiveMint',          url: 'https://www.livemint.com/rss/markets',                             color: '#2e7d32' },
+	{ id: 'ndtv-profit',  name: 'NDTV Profit',       url: 'https://feeds.feedburner.com/ndtvprofit-latest-news',              color: '#b71c1c' },
+	{ id: 'fe-markets',   name: 'Financial Express', url: 'https://www.financialexpress.com/market/feed/',                    color: '#e65100' },
 	// ── Mutual Funds ─────────────────────────────────────────────────────────────
 	{
 		id: 'cafemutual',
