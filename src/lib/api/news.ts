@@ -16,7 +16,31 @@ interface RawItem {
 	feedName: string;
 	feedColor: string;
 	forceCategory?: string | null;
+	sourceDomain?: string;
 }
+
+const TRUSTED_STOCK_DOMAINS = new Set([
+	'economictimes.indiatimes.com',
+	'moneycontrol.com',
+	'business-standard.com',
+	'livemint.com',
+	'ndtvprofit.com',
+	'ndtv.com',
+	'thehindu.com',
+	'financialexpress.com',
+	'reuters.com',
+	'bloomberg.com',
+	'businesstoday.in',
+	'zeebiz.com',
+	'cnbctv18.com',
+	'thehindubusinessline.com',
+	'ft.com',
+	'marketsmojo.com',
+	'bseindia.com',
+	'nseindia.com',
+	'sebi.gov.in',
+	'rbi.org.in'
+]);
 
 function cleanTitle(raw: string): string {
 	return raw.replace(/\s+-\s+[^-]+$/, '').trim();
@@ -92,7 +116,25 @@ function sharedEntities(a: Set<string>, b: Set<string>): number {
 	return count;
 }
 
-function deduplicateAndGroup(items: RawItem[], category: NewsCategory): NewsCard[] {
+function deduplicateAndGroup(rawItems: RawItem[], category: NewsCategory): NewsCard[] {
+	// URL-exact dedup: keep first occurrence of each link
+	const seenLinks = new Set<string>();
+	const items = rawItems.filter((item) => {
+		if (seenLinks.has(item.link)) return false;
+		seenLinks.add(item.link);
+		return true;
+	});
+
+	// For stocks: only keep items from trusted Indian financial news domains
+	// (only applies when sourceDomain is present — ET Markets direct feed has no sourceDomain)
+	const filteredItems = category === 'stocks'
+		? items.filter((item) => !item.sourceDomain || TRUSTED_STOCK_DOMAINS.has(item.sourceDomain))
+		: items;
+
+	return _deduplicateAndGroup(filteredItems, category);
+}
+
+function _deduplicateAndGroup(items: RawItem[], category: NewsCategory): NewsCard[] {
 	type Group = {
 		headline: string;
 		tokens: Set<string>;
@@ -150,10 +192,17 @@ function deduplicateAndGroup(items: RawItem[], category: NewsCategory): NewsCard
 		return { g, sources, score: scoreRelevance(g.headline) + sourceBonus };
 	});
 
-	// For stocks: score filter + cap. For others: show everything in 36hr window, sorted by recency.
+	// For stocks: score filter + SME IPO single-source suppression + cap.
+	// For others: show everything in 36hr window, sorted by recency.
 	const qualifying =
 		category === 'stocks'
-			? scored.filter((x) => x.score >= MIN_SCORE)
+			? scored
+				.filter((x) => x.score >= MIN_SCORE)
+				.filter((x) => {
+					const h = x.g.headline.toLowerCase();
+					const isSmeIpo = h.includes('sme ipo') || (h.includes('sme') && h.includes('ipo'));
+					return !isSmeIpo || x.sources.length >= 2;
+				})
 				.sort((a, b) => b.score - a.score || b.g.timestamp.getTime() - a.g.timestamp.getTime())
 				.slice(0, STOCKS_MAX_CARDS)
 			: scored.sort((a, b) => b.g.timestamp.getTime() - a.g.timestamp.getTime());
